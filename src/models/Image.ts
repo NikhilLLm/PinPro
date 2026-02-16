@@ -37,6 +37,6 @@ const imageSchema = new Schema<IImage>({
     }
 }, { timestamps: true })
 
-const Image = models?.Image || model<IImage>("Image", imageSchema);
+const Image = models?.Image || model<IImage>("Image", imageSchema); //this check if Image is already defined or not if yes then give to me if not then create
 
 export default Image

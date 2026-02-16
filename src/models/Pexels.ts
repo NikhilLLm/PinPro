@@ -5,8 +5,8 @@ export interface IPexelsPhoto {
     url: string;
     photographer: string;
     photographer_url: string;
-    photographer_id: number;
-    avg_color: string;
+    photographer_id: string | null;
+    avg_color: string | null;
     src: {
         original: string;
         large2x: string;
@@ -17,7 +17,7 @@ export interface IPexelsPhoto {
         landscape: string;
         tiny: string;
     };
-    alt: string;
+    alt: string | null;
 }
 
 export interface IPexelsResponse {
@@ -25,5 +25,10 @@ export interface IPexelsResponse {
     page: number;
     per_page: number;
     photos: IPexelsPhoto[];
-    next_page?: string;
+    next_page?: number | null;
+}
+
+//1.pexels tool
+export interface PexelsInput{
+    query:string
 }
