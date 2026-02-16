@@ -37,7 +37,7 @@ export default function RootLayout({
         <Providers>
           <NotificationProvider>
             <Header />
-            <main className="container mx-auto px-4 py-8">
+            <main>
               {children}
             </main>
           </NotificationProvider>
