@@ -49,7 +49,7 @@ export default function Home() {
             Welcome to <span className="text-primary">PinPro</span>
           </h1>
           <p className="text-slate-400 text-lg md:text-xl leading-relaxed">
-            Discover and share your inspiration. This platform allows you to upload, manage, and share high-quality image pins powered by ImageKit.
+            Discover and share your inspiration. This platform allows you to create, manage, and share high-quality image pins powered by AI and ImageKit.
           </p>
           <div className="space-y-4 pt-6">
             <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Ready to start?</p>
@@ -71,11 +71,11 @@ export default function Home() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="space-y-4 text-center md:text-left">
             <h1 className="text-4xl font-black text-white tracking-tight">Your DashBoard</h1>
-            <p className="text-slate-400 text-lg">Your personal space for managing and viewing your uploaded pins.</p>
+            <p className="text-slate-400 text-lg">Your personal space for managing and viewing your saved pins.</p>
           </div>
 
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-8 min-w-[280px] shadow-inner text-center">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Pins Uploaded</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Saved Pins</p>
             <p className="text-7xl font-black text-primary leading-none">{userImages.length}</p>
           </div>
         </div>
@@ -84,7 +84,6 @@ export default function Home() {
       <div className="space-y-8">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <h2 className="text-2xl font-bold text-white tracking-tight">Recent Pins</h2>
-          <Link href="/upload" className="text-sm font-bold text-primary hover:underline">Upload New Pin</Link>
         </div>
         <ImageFeed images={images} />
       </div>
