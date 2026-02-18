@@ -5,7 +5,7 @@ import { IImage } from "@/models/Image"
 export default function ImageComponent({ image }: { image: IImage }) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden group hover:border-primary/50 transition-colors">
-      <Link href={`/videos/${image._id}`} className="block relative aspect-[2/3]">
+      <Link href={`/images/${image._id}`} className="block relative aspect-[2/3]">
         <IKImage
           path={image.imageUrl}
           alt={image.title}
@@ -18,7 +18,7 @@ export default function ImageComponent({ image }: { image: IImage }) {
       </Link>
 
       <div className="p-4 space-y-2">
-        <Link href={`/videos/${image._id}`} className="block">
+        <Link href={`/images/${image._id}`} className="block">
           <h2 className="text-lg font-bold text-white line-clamp-1 group-hover:text-primary transition-colors">
             {image.title}
           </h2>

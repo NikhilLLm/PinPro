@@ -20,7 +20,7 @@ class ApiClient {
       ...headers,
     };
 
-    const response = await fetch(`/api/auth${endpoint}`, {
+    const response = await fetch(`/api${endpoint}`, {
       method,
       headers: defaultHeaders,
       body: body ? JSON.stringify(body) : undefined,
@@ -34,15 +34,15 @@ class ApiClient {
   }
 
   async getImages() {
-    return this.fetch<IImage[]>("/videos");
+    return this.fetch<IImage[]>("/images");
   }
 
   async getImage(id: string) {
-    return this.fetch<IImage>(`/videos/${id}`);
+    return this.fetch<IImage>(`/images/${id}`);
   }
 
   async createImage(imageData: MyImageFormData) {
-    return this.fetch<IImage>("/videos", {
+    return this.fetch<IImage>("/images", {
       method: "POST",
       body: imageData,
     });

@@ -1,4 +1,4 @@
-import { IPexelsPhoto } from "@/models/Pexels";
+import { IPexelsPhoto } from "@/types/pexels";
 import { Check } from "lucide-react";
 
 interface PexelsImageCardProps {
@@ -11,15 +11,15 @@ export default function PexelsImageCard({ photo, isSelected = false, onToggle }:
     return (
         <div
             className={`break-inside-avoid group relative rounded-2xl overflow-hidden bg-slate-900 border-2 transition-all duration-300 mb-6 cursor-pointer ${isSelected
-                    ? "border-primary ring-2 ring-primary/30"
-                    : "border-slate-800 hover:border-primary/50"
+                ? "border-primary ring-2 ring-primary/30"
+                : "border-slate-800 hover:border-primary/50"
                 }`}
             onClick={() => onToggle?.(photo)}
         >
             {/* Checkbox indicator */}
             <div className={`absolute top-3 right-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${isSelected
-                    ? "bg-primary text-white scale-100"
-                    : "bg-black/40 backdrop-blur-sm border border-white/20 text-transparent group-hover:text-white/50 scale-90 group-hover:scale-100"
+                ? "bg-primary text-white scale-100"
+                : "bg-black/40 backdrop-blur-sm border border-white/20 text-transparent group-hover:text-white/50 scale-90 group-hover:scale-100"
                 }`}>
                 <Check className="w-4 h-4" />
             </div>

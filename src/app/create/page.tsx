@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Send, Sparkles, Image as ImageIcon, Wand2, User, Bot, Loader2 } from "lucide-react";
-import { IPexelsPhoto, IPexelsResponse } from "@/models/Pexels";
-import PexelsImageCard from "../components/PexelsImageCard";
+import { IPexelsPhoto, IPexelsResponse } from "@/types/pexels";
+import AiResultSection from "../components/AiResultSection";
+import PexelsResultSection from "../components/PexelsResultSection";
+import FileUpload from "../components/FileUpload";
 
 interface Message {
     role: "user" | "assistant";
@@ -149,8 +151,10 @@ export default function CreatePinPage() {
     const [prompt, setPrompt] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [images, setImages] = useState<IPexelsPhoto[]>([]);
-    const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
+    const [generatedImages, setGeneratedImages] = useState<{ url: string; prompt: string }[]>([]);
+    const [selectedImages, setSelectedImages] = useState<Set<number | string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -176,18 +180,26 @@ export default function CreatePinPage() {
     const handleSend = async () => {
         if (!prompt.trim() || isLoading) return;
 
-        const userMessage = prompt.trim();
+        const userMessage = {
+            prompt: prompt.trim(),
+            url: referenceImage
+        }
         setPrompt("");
-        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+        setMessages((prev) => [...prev, { role: "user", content: JSON.stringify(userMessage) }]);
         setIsLoading(true);
 
         try {
             const data = await getLLMResponse(userMessage, messages);
 
+            console.log(data); 
+
             setMessages((prev) => [...prev, { role: "assistant", content: data.result }]);
 
-            if (data.data?.photos) {
-                setImages(data.data.photos);
+            if (data.data?.pexelsPhotos) {
+                setImages(data.data.pexelsPhotos);
+            }
+            if (data.data?.generatedImages) {
+                setGeneratedImages(data.data.generatedImages);
             }
         } catch (error) {
             console.error("Chat error:", error);
@@ -233,7 +245,32 @@ export default function CreatePinPage() {
                                 ? "bg-primary text-white rounded-tr-none"
                                 : "bg-white/5 text-slate-300 border border-white/5 rounded-tl-none"
                                 }`}>
-                                {msg.role === "assistant" ? renderMarkdown(msg.content) : msg.content}
+                                {msg.role === "assistant" ? renderMarkdown(msg.content) : (
+                                    (() => {
+                                        try {
+                                            const parsed = JSON.parse(msg.content);
+                                            if (parsed.prompt || parsed.url) {
+                                                return (
+                                                    <div className="space-y-3">
+                                                        {parsed.url && (
+                                                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-white/20 shadow-lg">
+                                                                <img
+                                                                    src={parsed.url}
+                                                                    alt="Reference"
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <p>{parsed.prompt}</p>
+                                                    </div>
+                                                );
+                                            }
+                                        } catch (e) {
+                                            return msg.content;
+                                        }
+                                        return msg.content;
+                                    })()
+                                )}
                             </div>
                         </div>
                     ))}
@@ -252,26 +289,32 @@ export default function CreatePinPage() {
 
                 {/* Input Area */}
                 <div className="p-6 border-t border-white/5 bg-slate-900/50">
-                    <div className="relative group">
-                        <textarea
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Describe your pin idea..."
-                            className="w-full bg-slate-800 border-2 border-white/5 rounded-2xl p-4 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary/50 transition-all resize-none h-32"
+                    <div className="flex items-start gap-4">
+                        <FileUpload
+                            onImageSelect={(base64) => setReferenceImage(base64)}
+                            className="flex-shrink-0 pt-1"
                         />
-                        <button
-                            onClick={handleSend}
-                            className="absolute bottom-4 right-4 p-2 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                            disabled={!prompt.trim() || isLoading}
-                        >
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        </button>
+                        <div className="flex-1 relative group">
+                            <textarea
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="Describe your pin idea..."
+                                className="w-full bg-slate-800 border-2 border-white/5 rounded-2xl p-4 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary/50 transition-all resize-none h-32"
+                            />
+                            <button
+                                onClick={handleSend}
+                                className="absolute bottom-4 right-4 p-2 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                disabled={!prompt.trim() || isLoading}
+                            >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            </button>
+                        </div>
                     </div>
                     <div className="flex gap-2 mt-4 text-[10px] uppercase font-bold text-slate-500 tracking-widest pl-1">
                         <span className="flex items-center gap-1"><Wand2 className="w-3 h-3" /> Generate</span>
@@ -283,26 +326,15 @@ export default function CreatePinPage() {
 
             {/* Right Main Content Area - Results */}
             <main className="flex-1 relative overflow-y-auto bg-slate-900/30 p-8">
-                {images.length > 0 ? (
-                    <>
-                        {selectedImages.size > 0 && (
-                            <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
-                                <span className="bg-primary/20 text-primary px-3 py-1 rounded-full font-semibold">
-                                    {selectedImages.size} selected
-                                </span>
-                            </div>
-                        )}
-                        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 animate-in fade-in duration-700">
-                            {images.map((photo) => (
-                                <PexelsImageCard
-                                    key={photo.id}
-                                    photo={photo}
-                                    isSelected={selectedImages.has(photo.id)}
-                                    onToggle={toggleImage}
-                                />
-                            ))}
-                        </div>
-                    </>
+                {images.length > 0 || generatedImages.length > 0 ? (
+                    <div className="space-y-12 pb-20">
+                        <AiResultSection images={generatedImages} />
+                        <PexelsResultSection
+                            images={images}
+                            selectedImages={selectedImages}
+                            onToggleImage={toggleImage}
+                        />
+                    </div>
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center p-12">
                         <div className="text-center space-y-6 max-w-md animate-in fade-in zoom-in duration-700">

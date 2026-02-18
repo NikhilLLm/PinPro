@@ -37,9 +37,7 @@ export default function Header() {
               <Link className="text-sm font-semibold text-slate-400 hover:text-white" href="/">
                 Explore
               </Link>
-              <Link className="text-sm font-semibold text-slate-400 hover:text-white" href="/upload">
-                Upload
-              </Link>
+
               <Link className="text-sm font-semibold text-slate-400 hover:text-white" href="/create">
                 Create
               </Link>
