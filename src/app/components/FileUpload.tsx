@@ -1,99 +1,93 @@
 "use client";
 
-import { IKUpload } from "imagekitio-next";
-import { IKUploadResponse } from "imagekitio-next/dist/types/components/IKUpload/props";
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Plus, X, Loader2 } from "lucide-react";
 
 interface FileUploadProps {
-  onSuccess: (res: IKUploadResponse) => void;
-  onProgress?: (progress: number) => void;
-  fileType?: "image" | "video";
+    onImageSelect: (base64: string) => void;
+    className?: string;
 }
 
-export default function FileUpload({
-  onSuccess,
-  onProgress,
-  fileType = "image",
-}: FileUploadProps) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function FileUpload({ onImageSelect, className = "" }: FileUploadProps) {
+    const [preview, setPreview] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onError = (err: { message: string }) => {
-    setError(err.message);
-    setUploading(false);
-  };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-  const handleSuccess = (response: IKUploadResponse) => {
-    setUploading(false);
-    setError(null);
-    onSuccess(response);
-  };
+        if (!file.type.startsWith("image/")) {
+            alert("Please upload an image file.");
+            return;
+        }
 
-  const handleStartUpload = () => {
-    setUploading(true);
-    setError(null);
-  };
+        setIsProcessing(true);
+        const reader = new FileReader();
 
-  const handleProgress = (evt: ProgressEvent) => {
-    if (evt.lengthComputable && onProgress) {
-      const percentComplete = (evt.loaded / evt.total) * 100;
-      onProgress(Math.round(percentComplete));
-    }
-  };
+        reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            setPreview(base64);
+            onImageSelect(base64);
+            setIsProcessing(false);
+        };
 
-  const validateFile = (file: File) => {
-    if (fileType === "video") {
-      if (!file.type.startsWith("video/")) {
-        setError("Please upload a valid video file");
-        return false;
-      }
-      if (file.size > 100 * 1024 * 1024) {
-        setError("Video size must be less than 100MB");
-        return false;
-      }
-    } else {
-      const validTypes = ["image/jpeg", "image/png", "image/webp"];
-      if (!validTypes.includes(file.type)) {
-        setError("Please upload a valid image file (JPEG, PNG, or WebP)");
-        return false;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setError("File size must be less than 5MB");
-        return false;
-      }
-    }
-    return true;
-  };
+        reader.onerror = () => {
+            console.error("FileReader error");
+            setIsProcessing(false);
+        };
 
-  return (
-    <div className="space-y-4 w-full">
-      <IKUpload
-        fileName={fileType === "video" ? "video" : "image"}
-        onError={onError}
-        onSuccess={handleSuccess}
-        onUploadStart={handleStartUpload}
-        onUploadProgress={handleProgress}
-        accept={fileType === "video" ? "video/*" : "image/*"}
-        className="file-input file-input-bordered w-full bg-transparent border-none focus:outline-none"
-        validateFile={validateFile}
-        useUniqueFileName={true}
-        folder={fileType === "video" ? "/videos" : "/images"}
-      />
+        reader.readAsDataURL(file);
+    };
 
-      {uploading && (
-        <div className="flex items-center gap-3 text-sm text-primary font-medium animate-pulse px-2">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Uploading to ImageKit...</span>
+    const removeImage = () => {
+        setPreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    return (
+        <div className={`${className}`}>
+            <div className="relative">
+                {!preview ? (
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-800 border-2 border-white/5 hover:border-primary/50 text-slate-400 hover:text-primary transition-all duration-300 shadow-lg"
+                        title="Upload Reference Image"
+                    >
+                        {isProcessing ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Plus className="w-6 h-6" />
+                        )}
+                    </button>
+                ) : (
+                    <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-primary/50 group/preview animate-in zoom-in-95 duration-300 shadow-lg shadow-primary/20">
+                        <img
+                            src={preview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                        />
+                        <button
+                            onClick={removeImage}
+                            className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity duration-200"
+                            title="Remove image"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                />
+            </div>
         </div>
-      )}
-
-      {error && (
-        <div className="text-error text-sm px-4 py-3 rounded-xl bg-error/10 border border-error/20 flex items-center gap-2">
-          <span className="text-lg">!</span>
-          {error}
-        </div>
-      )}
-    </div>
-  );
+    );
 }
