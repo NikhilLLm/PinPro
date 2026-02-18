@@ -1,6 +1,4 @@
-import { error } from "console";
 import Groq from "groq-sdk";
-import { NextResponse, NextRequest } from "next/server";
 import { tools } from "@/lib/llm/tools";
 import { connectToDatabase } from "@/lib/db";
 import ChatHistory from "@/models/ChatHistory";
@@ -11,41 +9,59 @@ const system_prompt = `You are a Pinterest visual aesthetics expert and creative
 
 Your goal is to help users create stunning pins by finding inspiration, generating ideas, and guiding their creative process.
 
-You have access to tools that help you accomplish tasks. Use the right tool for the job.
+You have access to tools: 'Search_Images', 'text_to_image_tool', and 'image_to_image_gen_tool'.
+
+CRITICAL INSTRUCTIONS:
+1. NEVER output actual base64 data, Data URIs, or markdown image tags (like ![...](data:...)) in your text response.
+2. The UI will automatically display any images you generate or find. Do not try to show them yourself using markdown.
+3. Simply describe the creative vision or the result of your action in natural language.
+4. If a tool result contains large data, ignore the raw data and just confirm the action worked.
 
 When searching for images:
-- Craft highly descriptive, aesthetic search queries (not generic ones).
-- Example: Instead of "food", use "gourmet burger close up dark moody editorial photography".
-- Add style keywords like: "editorial", "cinematic lighting", "minimalist", "warm tones", "professional photography".
-- Each image result has an ID, alt text, and photographer. Reference these when discussing results.
-
-When a request is vague, ask a short follow-up question to clarify the mood, style, or category before searching.
+- Craft highly descriptive, aesthetic search queries with keywords like: "editorial", "cinematic lighting", "minimalist", "professional photography".
 
 Keep responses concise. Use bulleted lists with bold titles. Be creative and inspiring.`;
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { IPexelsPhoto } from "@/models/Pexels";
+import { IPexelsPhoto, IPexelsResponse } from "@/types/pexels";
 
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
-        return NextResponse.json(
+        return Response.json(
             { error: "Unauthorized" },
             { status: 401 }
         );
     }
 
-    const { prompt, history = [] } = await request.json()
+    const { input, history = [] } = await request.json()
+
+    const isFileAttached = input.url ? "[IMAGE_ATTACHED]" : ""
 
     await connectToDatabase()
 
-    // Get last 4 messages for context
-    const contextHistory = history.slice(-4).map((msg: any) => ({
-        role: msg.role,
-        content: msg.content
-    }));
+    // Get last 4 messages for context and aggressively strip any base64 images
+    const contextHistory = history.slice(-4).map((msg: any) => {
+        let content = msg.content;
+
+        // 1. Try JSON scrubbing (most accurate)
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed && typeof parsed === 'object' && parsed.url) {
+                content = `${parsed.prompt || ""}\n\n[IMAGE_ATTACHED]`;
+            }
+        } catch (e) { }
+
+        // 2. Fallback regex scrubbing (catches raw strings or broken JSON)
+        content = content.replace(/data:image\/[^;]+;base64,[^"\s]+/g, "[IMAGE_DATA]");
+
+        return {
+            role: msg.role,
+            content: content
+        };
+    });
 
     const hasHistory = contextHistory.length > 0;
     const lastAssistantMsg = contextHistory
@@ -56,25 +72,33 @@ export async function POST(request: Request) {
     const previouslyShowedImages = lastAssistantMsg?.content?.match(
         /image|photo|picture|pin idea|inspiration|search result/i
     );
-    const shouldForceTool = hasHistory && previouslyShowedImages;
+
     //tools required 
-    const formattedTools = tools.map(tool => ({
-        type: "function" as const,
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: {
-                type: "object",
-                properties: {
-                    query: {
-                        type: "string",
-                        description: "Query to search for"
-                    }
-                },
-                required: ["query"]
+    const formattedTools = tools.map(tool => {
+        const isImageToImage = tool.name === "image_to_image_gen_tool";
+        const paramName = isImageToImage ? "prompt" : "query";
+        const paramDesc = isImageToImage
+            ? "The text prompt describing the changes or additions to the reference image"
+            : "The search query or image generation prompt";
+
+        return {
+            type: "function" as const,
+            function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        [paramName]: {
+                            type: "string",
+                            description: paramDesc
+                        }
+                    },
+                    required: [paramName]
+                }
             }
-        }
-    }));
+        };
+    });
 
     //1.ask llm what to do 
     const initialResponse = await client.chat.completions.create({
@@ -87,11 +111,11 @@ export async function POST(request: Request) {
             ...contextHistory,
             {
                 role: "user",
-                content: prompt
+                content: input.prompt + isFileAttached
             }
         ],
         tools: formattedTools,
-        tool_choice: shouldForceTool ? "required" : "auto"
+        tool_choice: "auto"
     })
 
     const messgae = initialResponse.choices[0].message
@@ -100,7 +124,7 @@ export async function POST(request: Request) {
     await ChatHistory.create({
         user_id: session.user.id,
         role: "user",
-        context: prompt
+        context: input.prompt
     })
 
     //step 2: check if llm want to call
@@ -111,7 +135,14 @@ export async function POST(request: Request) {
         // Execute all tool calls in parallel
         const toolResults = await Promise.all(toolCalls.map(async (toolCall) => {
             const toolName = toolCall.function.name;
+            console.log(toolName);
             const toolArgs = JSON.parse(toolCall.function.arguments);
+
+            // Inject reference image URL specifically for image-to-image tool
+            if (toolName === "image_to_image_gen_tool" && input.url) {
+                toolArgs.url = input.url;
+            }
+
             const tool = tools.find((t) => t.name === toolName);
 
             if (!tool) {
@@ -119,17 +150,33 @@ export async function POST(request: Request) {
                 return { id: toolCall.id, error: "Tool not found" };
             }
 
-            const result = await tool.execute(toolArgs);
+            const result = await tool.execute(toolArgs) as any;
 
             // Clean result for LLM tokens
-            const cleanedResult = {
-                ...result,
-                photos: result.photos.map((p: IPexelsPhoto) => ({
-                    id: p.id,
-                    alt: p.alt,
-                    photographer: p.photographer
-                }))
-            };
+            let cleanedResult: any = result;
+
+            if (toolName === "Search_Images") {
+                cleanedResult = {
+                    ...result,
+                    photos: result.photos.map((p: IPexelsPhoto) => ({
+                        id: p.id,
+                        alt: p.alt,
+                        //add image url
+                        url: p.src.original,
+                        photographer: p.photographer
+                    }))
+                };
+            } else if (toolName === "text_to_image_tool") {
+                cleanedResult = {
+                    status: "success",
+                    message: "Image generated successfully (data hidden)."
+                };
+            } else if (toolName === "image_to_image_gen_tool") {
+                cleanedResult = {
+                    status: "success",
+                    message: "Reference image processed and new image generated successfully (data hidden)."
+                }
+            }
 
             return {
                 id: toolCall.id,
@@ -143,7 +190,7 @@ export async function POST(request: Request) {
             ...contextHistory,
             {
                 role: "user",
-                content: prompt
+                content: input.prompt + isFileAttached
             },
             {
                 role: "assistant",
@@ -167,7 +214,14 @@ export async function POST(request: Request) {
             tool_choice: "none"
         });
 
-        const finalContent = finalResponse.choices[0].message.content;
+        let finalContent = finalResponse.choices[0].message.content || "";
+
+        // Aggressively strip any accidental markdown images or base64 from the assistant's final text
+        finalContent = finalContent
+            .replace(/!\[.*?\]\(data:.*?\)/g, "[Image Generated]") // Remove md base64 images
+            .replace(/!\[.*?\]\(.*?\)/g, "") // Remove all md images
+            .replace(/data:image\/[^;]+;base64,[^"\s]+/g, "[DATA]"); // Remove raw base64 strings
+
 
         // Store assistant response in history
         await ChatHistory.create({
@@ -176,12 +230,32 @@ export async function POST(request: Request) {
             context: finalContent
         });
 
-        // Collect all image data from all tool calls
-        const allPhotos = toolResults.flatMap(tr => tr.result?.photos || []);
+        // Separate results by type
+        const pexelsPhotos = toolResults
+            .filter(tr => tr.result && "photos" in tr.result)
+            .flatMap(tr => (tr.result as any).photos);
+
+        const generatedImages = toolResults
+            .filter(tr => tr.result && "format" in tr.result && (tr.result as any).format)
+            .map(tr => {
+                const res = tr.result as any;
+                const toolCall = toolCalls.find(tc => tc.id === tr.id);
+                const toolArgs = JSON.parse(toolCall?.function.arguments || "{}");
+
+                return {
+                    url: res.format,
+                    prompt: toolArgs.query || toolArgs.prompt || "AI Generated"
+                };
+            });
+
 
         return Response.json({
             result: finalContent,
-            data: { photos: allPhotos } // UI gets all images combined
+            data: {
+                pexelsPhotos,
+                generatedImages,
+
+            }
         });
     }
 
