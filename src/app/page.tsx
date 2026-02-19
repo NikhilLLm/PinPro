@@ -18,8 +18,8 @@ export default function Home() {
       try {
         const data = await apiClient.getImages();
         setImages(data);
-        if (session?.user?.email) {
-          const filtered = data.filter((v: any) => v.userId === (session.user as any)?.id || v.userEmail === session.user?.email);
+        if (session?.user?.id) {
+          const filtered = data.filter((v: any) => v.userId?.toString() === session.user.id.toString());
           setUserImages(filtered);
         }
       } catch (error) {
