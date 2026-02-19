@@ -4,13 +4,14 @@ export interface HuggingFluxInput {
 }
 //Output
 
-export interface ImageOutput{
-    format:string
+export interface ImageOutput {
+    format: string
 }
 
 
 //for image to image
-export interface OpenRouterInput{
-    url:string | null,
-    prompt:string
+export interface OpenRouterInput {
+    url: string | null,
+    prompt: string,
+    strength?: number
 }

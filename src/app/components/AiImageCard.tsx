@@ -18,30 +18,38 @@ export default function AiImageCard({ url, prompt }: AiImageCardProps) {
     const ikUploadRef = useRef<HTMLInputElement>(null);
 
     const handleSave = async () => {
-        if (isSaving) return;
+        if (isSaving || !url) return;
         setIsSaving(true);
         try {
+            // Helper to convert base64 to Blob without fetch()
+            const base64Parts = url.split(',');
+            const mimeType = base64Parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+            const bstr = atob(base64Parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mimeType });
+            const extension = mimeType.split('/')[1] || 'png';
+            const file = new File([blob], `ai-${Date.now()}.${extension}`, { type: mimeType });
+
             // Trigger the hidden IKUpload component
             if (ikUploadRef.current) {
-                // The IKUpload component expects a File object.
-                // Since 'url' is now a base64 string, we need to convert it to a File.
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const file = new File([blob], `ai-${Date.now()}.png`, { type: blob.type });
-
-                // Assign the file to the inputRef's files property
-                // This is a common pattern for programmatically triggering file inputs
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
                 ikUploadRef.current.files = dataTransfer.files;
 
-                // Manually dispatch a change event to trigger IKUpload's internal logic
+                // Create a change event that bubbles correctly
                 const event = new Event('change', { bubbles: true });
                 ikUploadRef.current.dispatchEvent(event);
+            } else {
+                showNotification("Upload system not ready", "error");
+                setIsSaving(false);
             }
         } catch (error) {
             console.error("Save failed:", error);
-            showNotification("Failed to initiate save", "error");
+            showNotification("Failed to process image for saving", "error");
             setIsSaving(false);
         }
     };
@@ -52,6 +60,7 @@ export default function AiImageCard({ url, prompt }: AiImageCardProps) {
                 title: prompt || "AI Generated Pin",
                 description: `Created with AI: ${prompt}`,
                 imageUrl: res.url,
+                fileId: res.fileId,
             });
             showNotification("Pin saved to your collection!", "success");
         } catch (error) {

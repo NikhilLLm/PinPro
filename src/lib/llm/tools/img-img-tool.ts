@@ -1,96 +1,91 @@
 import { ImageOutput, OpenRouterInput } from "@/types/hugging-flux";
-
 import { Tool } from "@/types/tool";
 
+const apiToken = process.env.CLOUDEFARE_TOKEN;
+const accountId = process.env.ACCOUNT_ID;
 
-const apiKey = process.env.OPENAI_API_KEY;
-
-type ImageMessage = {
-    images?: {
-        image_format: {
-            format: string;
-        };
-    }[];
-};
-
-export async function generateImageOpenRouter(input: OpenRouterInput): Promise<ImageOutput> {
+export async function generateImageCloudflare(input: OpenRouterInput): Promise<ImageOutput> {
     try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: "black-forest-labs/flux.2-flex",
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                type: "text",
-                                text: input.prompt,
-                            },
-                            {
-                                type: "image_url",
-                                image_url: {
-                                    url: input.url,
-                                }
-                            }
-                        ]
-                    }
-                ],
-                modalities: ['image']
-            }),
-        });
+        const formData = new FormData();
+
+        // Add prompt and settings
+        formData.append("prompt", input.prompt);
+        formData.append("width", "1024");
+        formData.append("height", "1024");
+        if (input.strength !== undefined) {
+            formData.append("strength", input.strength.toString());
+        }
+
+        // Convert Data URI to Blob for reference image
+        if (input.url) {
+            const response = await fetch(input.url);
+            const blob = await response.blob();
+            // Flux-2 models often use 'image' or index-based keys for reference images
+            formData.append("image", blob, "reference.jpg");
+        }
+
+        const response = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiToken}`,
+                },
+                body: formData,
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Cloudflare API error: ${response.status} ${errorText}`);
+            throw new Error(`Cloudflare API error: ${response.statusText}`);
+        }
 
         const result = await response.json();
 
-        console.log(result)
+        // Cloudflare Flux results are usually in result.image or result[0]
+        let rawImage = result.result?.image || result.result?.[0] || result.image;
 
-        if (result.choices?.[0]?.message) {
-            const message = result.choices[0].message;
-
-            // Path 1: Nested image_format (Standard for some providers)
-            let base64 = (message as any).images?.[0]?.image_format?.format;
-
-            // Path 2: Direct images[0].url if it's a data URI
-            if (!base64 && (message as any).images?.[0]?.url?.startsWith('data:')) {
-                return { format: (message as any).images[0].url };
-            }
-
-            // Path 3: Direct images[0].url if it's raw base64
-            if (!base64 && (message as any).images?.[0]?.url) {
-                base64 = (message as any).images[0].url;
-            }
-
-            if (base64) {
-                // Return with required data URI prefix
-                return { format: base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}` };
-            }
+        if (!rawImage) {
+            console.error("Cloudflare response missing image data:", result);
+            throw new Error("Missing image data in Cloudflare response");
         }
+
+        // Strip any whitespace (newlines, spaces) that might be in the base64
+        if (typeof rawImage === 'string') {
+            rawImage = rawImage.replace(/\s/g, '');
+        }
+
+        // Handle case where it might already be a data URI
+        if (typeof rawImage === 'string' && rawImage.startsWith('data:')) {
+            return { format: rawImage };
+        }
+
+        // Detect format (default to PNG, but often JPEG for Flux)
+        // Check for common headers in base64
+        let prefix = 'data:image/png;base64,';
+        if (rawImage.startsWith('/9j/')) prefix = 'data:image/jpeg;base64,';
+        else if (rawImage.startsWith('iVBORw')) prefix = 'data:image/png;base64,';
+        else if (rawImage.startsWith('UklGR')) prefix = 'data:image/webp;base64,';
+
+        return { format: `${prefix}${rawImage}` };
     } catch (error) {
-        console.error("OpenRouter Image Generation failed:", error);
+        console.error("Cloudflare Image Generation failed:", error);
     }
-    return { format: "" }
+    return { format: "" };
 }
 
-
-//img to img tool
-
+// img to img tool using Cloudflare AI
 export const ImagetoImageGen: Tool<OpenRouterInput, ImageOutput> = {
     name: "image_to_image_gen_tool",
-    description: "Generation of image to image based on provided image plus prompt",
+    description: "Generation of image to image based on provided image plus prompt using Cloudflare Flux AI",
     execute: async (input) => {
         try {
-            const res = await generateImageOpenRouter(input)
-            return { format: res.format }
+            const res = await generateImageCloudflare(input);
+            return { format: res.format };
+        } catch (error) {
+            console.error(error);
         }
-        catch (error) {
-            console.error(error)
-        }
-        return { format: "" }
-
+        return { format: "" };
     }
-
-}
+};

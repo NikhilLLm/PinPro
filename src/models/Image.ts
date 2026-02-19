@@ -9,6 +9,7 @@ export const IMAGE_DIMENSIONS = {
 } as const
 export interface IImage {
     _id?: mongoose.Types.ObjectId;
+    fileId: string;
     title: string;
     description: string;
     imageUrl: string;
@@ -25,6 +26,7 @@ export interface IImage {
 
 
 const imageSchema = new Schema<IImage>({
+    fileId: { type: String, required: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
     imageUrl: { type: String, required: true },

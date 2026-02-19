@@ -47,6 +47,12 @@ class ApiClient {
       body: imageData,
     });
   }
+
+  async deleteImage(id: string) {
+    return this.fetch<{ message: string }>(`/images/${id}`, {
+      method: "DELETE",
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

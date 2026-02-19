@@ -20,6 +20,15 @@ CRITICAL INSTRUCTIONS:
 When searching for images:
 - Craft highly descriptive, aesthetic search queries with keywords like: "editorial", "cinematic lighting", "minimalist", "professional photography".
 
+INSTRUCTIONS FOR IMAGE-TO-IMAGE GENERATION (CRITICAL):
+1. SUBJECT ANCHORING: When using 'image_to_image_gen_tool' to modify an image, you MUST describe the original subject in great detail in your prompt to ensure the AI doesn't overwrite it. 
+   - Example: Instead of "change background to snowy mountain", say "The [describe subject from image] standing in front of a snowy mountain".
+2. STRENGTH CONTROL: 
+   - Use 'strength: 0.4' if the user wants to make small changes or keep the subject/layout exactly as is (e.g. "change my shirt color", "swap background").
+   - Use 'strength: 0.8' if the user wants a more radical transformation or just wants to use the original image as a loose reference.
+   - Use 'strength: 0.6' for a balanced change.
+3. ENHANCEMENT: Always combine the user's request with high-quality aesthetic keywords.
+
 Keep responses concise. Use bulleted lists with bold titles. Be creative and inspiring.`;
 
 import { getServerSession } from "next-auth";
@@ -78,8 +87,24 @@ export async function POST(request: Request) {
         const isImageToImage = tool.name === "image_to_image_gen_tool";
         const paramName = isImageToImage ? "prompt" : "query";
         const paramDesc = isImageToImage
-            ? "The text prompt describing the changes or additions to the reference image"
+            ? "The text prompt describing the changes or additions to the reference image. Anchor the subject descriptively!"
             : "The search query or image generation prompt";
+
+        const properties: any = {
+            [paramName]: {
+                type: "string",
+                description: paramDesc
+            }
+        };
+
+        if (isImageToImage) {
+            properties.strength = {
+                type: "number",
+                description: "How much to change the image (0.0 to 1.0). Use 0.4 for subtle background swaps/edits, 0.8 for radical changes.",
+                minimum: 0,
+                maximum: 1
+            };
+        }
 
         return {
             type: "function" as const,
@@ -88,17 +113,34 @@ export async function POST(request: Request) {
                 description: tool.description,
                 parameters: {
                     type: "object",
-                    properties: {
-                        [paramName]: {
-                            type: "string",
-                            description: paramDesc
-                        }
-                    },
+                    properties,
                     required: [paramName]
                 }
             }
         };
     });
+    //0. Analyze attached image if present to give the LLM "eyes"
+    let imageDescription = "";
+    if (input.url) {
+        try {
+            const visionResponse = await client.chat.completions.create({
+                model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Describe this image in detail, focusing on the main subject, colors, and layout. Be concise but specific enough for another AI to recreate the subject exactly." },
+                            { type: "image_url", image_url: { url: input.url } }
+                        ]
+                    }
+                ],
+                max_completion_tokens: 300
+            });
+            imageDescription = visionResponse.choices[0].message.content || "";
+        } catch (error) {
+            console.error("Vision Analysis failed:", error);
+        }
+    }
 
     //1.ask llm what to do 
     const initialResponse = await client.chat.completions.create({
@@ -111,7 +153,7 @@ export async function POST(request: Request) {
             ...contextHistory,
             {
                 role: "user",
-                content: input.prompt + isFileAttached
+                content: (imageDescription ? `[REFERENCE IMAGE DESCRIPTION: ${imageDescription}]\n\n` : "") + input.prompt + isFileAttached
             }
         ],
         tools: formattedTools,
@@ -207,10 +249,15 @@ export async function POST(request: Request) {
         // Final response from LLM
         const finalResponse = await client.chat.completions.create({
             model: "openai/gpt-oss-120b",
-            messages: finalMessages as any,
+            messages: [
+                {
+                    role: "system",
+                    content: system_prompt
+                },
+                ...finalMessages
+            ] as any,
             temperature: 0.8,
             max_completion_tokens: 2000,
-            tools: formattedTools,
             tool_choice: "none"
         });
 

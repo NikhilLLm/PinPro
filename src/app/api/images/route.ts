@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
         if (
             !body.title ||
             !body.description ||
-            !body.imageUrl
+            !body.imageUrl ||
+            !body.fileId
         ) {
             return NextResponse.json(
                 { error: "Missing required fields" },
