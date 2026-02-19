@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { IKImage } from "imagekitio-next";
+import { Image as IKImage } from "@imagekit/next";
 import { IImage } from "@/models/Image";
 import { apiClient } from "@/lib/api-client";
 import { Loader2, Calendar, FileText } from "lucide-react";
@@ -51,36 +51,29 @@ export default function ImageDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 {/* Image Section */}
                 <div className="lg:col-span-2">
-                    {(() => {
-                        const url = pin.imageUrl;
-                        if (url.startsWith("data:")) {
-                            return (
-                                <img
-                                    src={url}
-                                    alt={pin.title}
-                                    className="w-full h-full object-contain"
-                                />
-                            );
-                        }
-                        if (url.startsWith("http")) {
+                    <div className="premium-card overflow-hidden bg-black/40 aspect-[2/3] max-w-[500px] mx-auto relative group">
+                        {(() => {
+                            const url = pin.imageUrl;
+                            if (url.startsWith("data:")) {
+                                return (
+                                    <img
+                                        src={url}
+                                        alt={pin.title}
+                                        className="w-full h-full object-contain"
+                                    />
+                                );
+                            }
                             return (
                                 <IKImage
                                     src={url}
                                     alt={pin.title}
                                     transformation={[{ height: "1500", width: "1000" }]}
+                                    fill
                                     className="w-full h-full object-contain"
                                 />
                             );
-                        }
-                        return (
-                            <IKImage
-                                path={url}
-                                alt={pin.title}
-                                transformation={[{ height: "1500", width: "1000" }]}
-                                className="w-full h-full object-contain"
-                            />
-                        );
-                    })()}
+                        })()}
+                    </div>
                 </div>
 
                 {/* Pin Details Section */}

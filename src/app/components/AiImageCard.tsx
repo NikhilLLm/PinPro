@@ -1,10 +1,11 @@
 "use client";
 
 import { Download, Save, Loader2 } from "lucide-react";
-import { IKUpload } from "imagekitio-next";
-import { useState, useRef } from "react";
+
+import { useState } from "react";
 import { useNotification } from "./Notification";
 import { apiClient } from "@/lib/api-client";
+import { upload } from "@imagekit/next";
 
 interface AiImageCardProps {
     url: string; // This is the base64 string
@@ -15,65 +16,46 @@ export default function AiImageCard({ url, prompt }: AiImageCardProps) {
     if (url === "") return <div className="w-full h-auto object-cover"></div>;
     const [isSaving, setIsSaving] = useState(false);
     const { showNotification } = useNotification();
-    const ikUploadRef = useRef<HTMLInputElement>(null);
 
     const handleSave = async () => {
         if (isSaving || !url) return;
         setIsSaving(true);
         try {
-            // Helper to convert base64 to Blob without fetch()
-            const base64Parts = url.split(',');
-            const mimeType = base64Parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-            const bstr = atob(base64Parts[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            const blob = new Blob([u8arr], { type: mimeType });
-            const extension = mimeType.split('/')[1] || 'png';
-            const file = new File([blob], `ai-${Date.now()}.${extension}`, { type: mimeType });
+            // 1. Get authentication parameters from our API
+            const authResponse = await fetch("/api/imagekit-auth");
+            if (!authResponse.ok) throw new Error("Auth failed");
+            const authData = await authResponse.json();
 
-            // Trigger the hidden IKUpload component
-            if (ikUploadRef.current) {
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                ikUploadRef.current.files = dataTransfer.files;
+            // 2. Call the upload function directly
+            const res = await upload({
+                file: url,
+                fileName: `ai-${Date.now()}.png`,
+                publicKey: process.env.NEXT_PUBLIC_PUBLIC_KEY || "",
+                token: (authData.token as string) || "",
+                signature: (authData.signature as string) || "",
+                expire: (authData.expire as number) || 0,
+                folder: "/ai-pins",
+                useUniqueFileName: true,
+            });
 
-                // Create a change event that bubbles correctly
-                const event = new Event('change', { bubbles: true });
-                ikUploadRef.current.dispatchEvent(event);
-            } else {
-                showNotification("Upload system not ready", "error");
-                setIsSaving(false);
-            }
-        } catch (error) {
-            console.error("Save failed:", error);
-            showNotification("Failed to process image for saving", "error");
-            setIsSaving(false);
-        }
-    };
-
-    const onUploadSuccess = async (res: any) => {
-        try {
+            // 3. Save to database
             await apiClient.createImage({
                 title: prompt || "AI Generated Pin",
                 description: `Created with AI: ${prompt}`,
-                imageUrl: res.filePath,
-                fileId: res.fileId,
+                imageUrl: (res.filePath as string) || "",
+                fileId: (res.fileId as string) || "",
             });
+
             showNotification("Pin saved to your collection!", "success");
         } catch (error) {
-            showNotification("Failed to save to database", "error");
+            console.error("Save failed:", error);
+            showNotification(
+                error instanceof Error ? error.message : "Failed to save image",
+                "error"
+            );
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const onUploadError = (err: any) => {
-        console.error("Upload error:", err);
-        showNotification("Failed to upload to ImageKit", "error");
-        setIsSaving(false);
     };
     const handleDownload = async () => {
         try {
@@ -94,17 +76,6 @@ export default function AiImageCard({ url, prompt }: AiImageCardProps) {
 
     return (
         <div className="break-inside-avoid group relative rounded-2xl overflow-hidden bg-slate-900 border-2 border-primary/30 hover:border-primary transition-all duration-300 mb-6 shadow-xl shadow-primary/5">
-            {/* Hidden ImageKit Upload for the base64 */}
-            <div className="hidden">
-                <IKUpload
-                    fileName={`ai-${Date.now()}.png`}
-                    useUniqueFileName={true}
-                    folder="/ai-pins"
-                    ref={ikUploadRef}
-                    onError={onUploadError}
-                    onSuccess={onUploadSuccess}
-                />
-            </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <button

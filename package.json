@@ -17,7 +17,6 @@
     "groq-sdk": "^0.37.0",
     "huggingface": "^1.4.0",
     "imagekit": "^6.0.0",
-    "imagekitio-next": "^1.0.1",
     "imagekitio-react": "^4.3.0",
     "lucide-react": "^0.563.0",
     "mongoose": "^9.1.5",

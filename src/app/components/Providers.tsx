@@ -1,7 +1,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { ImageKitProvider } from "imagekitio-next";
+import { ImageKitProvider } from "@imagekit/next";
 import { NotificationProvider } from "./Notification";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -26,9 +26,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider refetchInterval={5 * 60}>
       <NotificationProvider>
         <ImageKitProvider
-          publicKey={publicKey}
           urlEndpoint={urlEndpoint}
-          authenticator={authenticator}
         >
           {children}
         </ImageKitProvider>

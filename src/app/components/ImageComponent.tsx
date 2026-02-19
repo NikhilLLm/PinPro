@@ -1,6 +1,6 @@
 "use client";
 
-import { IKImage } from "imagekitio-next";
+import { Image as IKImage } from "@imagekit/next";
 import Link from "next/link";
 import { IImage } from "@/models/Image"
 import { Trash2, Loader2 } from "lucide-react";
@@ -68,16 +68,18 @@ export default function ImageComponent({ image }: { image: IImage }) {
                 alt={image.title}
                 transformation={[{ height: "1500", width: "1000" }]}
                 loading="lazy"
+                fill
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             );
           }
           return (
             <IKImage
-              path={url}
+              src={url}
               alt={image.title}
               transformation={[{ height: "1500", width: "1000" }]}
               loading="lazy"
+              fill
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           );
