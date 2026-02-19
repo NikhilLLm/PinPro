@@ -13,6 +13,7 @@ export interface IImage {
     title: string;
     description: string;
     imageUrl: string;
+    userId?: mongoose.Types.ObjectId;
     hashtags?: string[];
     transformation?: {
         height: number;
@@ -30,6 +31,7 @@ const imageSchema = new Schema<IImage>({
     title: { type: String, required: true },
     description: { type: String, required: true },
     imageUrl: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     hashtags: { type: [String], default: [] },
     transformation: {
         height: { type: Number, default: IMAGE_DIMENSIONS.height },

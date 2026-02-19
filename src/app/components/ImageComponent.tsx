@@ -50,13 +50,38 @@ export default function ImageComponent({ image }: { image: IImage }) {
       </div>
 
       <Link href={`/images/${image._id}`} className="block relative aspect-[2/3]">
-        <IKImage
-          path={image.imageUrl}
-          alt={image.title}
-          transformation={[{ height: "1500", width: "1000" }]}
-          loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        {(() => {
+          const url = image.imageUrl;
+          if (url.startsWith("data:")) {
+            return (
+              <img
+                src={url}
+                alt={image.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            );
+          }
+          if (url.startsWith("http")) {
+            return (
+              <IKImage
+                src={url}
+                alt={image.title}
+                transformation={[{ height: "1500", width: "1000" }]}
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            );
+          }
+          return (
+            <IKImage
+              path={url}
+              alt={image.title}
+              transformation={[{ height: "1500", width: "1000" }]}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          );
+        })()}
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="btn btn-primary btn-sm rounded-lg">View Pin</span>
         </div>

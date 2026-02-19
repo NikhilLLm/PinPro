@@ -185,13 +185,14 @@ export default function CreatePinPage() {
             url: referenceImage
         }
         setPrompt("");
+        setReferenceImage(null);
         setMessages((prev) => [...prev, { role: "user", content: JSON.stringify(userMessage) }]);
         setIsLoading(true);
 
         try {
             const data = await getLLMResponse(userMessage, messages);
 
-            console.log(data); 
+            console.log(data);
 
             setMessages((prev) => [...prev, { role: "assistant", content: data.result }]);
 

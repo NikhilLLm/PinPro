@@ -51,14 +51,36 @@ export default function ImageDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 {/* Image Section */}
                 <div className="lg:col-span-2">
-                    <div className="premium-card overflow-hidden bg-black/40 aspect-[2/3] max-w-[500px] mx-auto relative group">
-                        <IKImage
-                            path={pin.imageUrl}
-                            alt={pin.title}
-                            transformation={[{ height: "1500", width: "1000" }]}
-                            className="w-full h-full object-contain"
-                        />
-                    </div>
+                    {(() => {
+                        const url = pin.imageUrl;
+                        if (url.startsWith("data:")) {
+                            return (
+                                <img
+                                    src={url}
+                                    alt={pin.title}
+                                    className="w-full h-full object-contain"
+                                />
+                            );
+                        }
+                        if (url.startsWith("http")) {
+                            return (
+                                <IKImage
+                                    src={url}
+                                    alt={pin.title}
+                                    transformation={[{ height: "1500", width: "1000" }]}
+                                    className="w-full h-full object-contain"
+                                />
+                            );
+                        }
+                        return (
+                            <IKImage
+                                path={url}
+                                alt={pin.title}
+                                transformation={[{ height: "1500", width: "1000" }]}
+                                className="w-full h-full object-contain"
+                            />
+                        );
+                    })()}
                 </div>
 
                 {/* Pin Details Section */}

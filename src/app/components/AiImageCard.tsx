@@ -59,7 +59,7 @@ export default function AiImageCard({ url, prompt }: AiImageCardProps) {
             await apiClient.createImage({
                 title: prompt || "AI Generated Pin",
                 description: `Created with AI: ${prompt}`,
-                imageUrl: res.url,
+                imageUrl: res.filePath,
                 fileId: res.fileId,
             });
             showNotification("Pin saved to your collection!", "success");
