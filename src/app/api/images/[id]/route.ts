@@ -11,18 +11,43 @@ const imagekit = new ImageKit({
     urlEndpoint: process.env.NEXT_PUBLIC_URL_ENDPOINT!.trim(),
 });
 
-export async function DELETE(
+export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await context.params;
+        await connectToDatabase();
+        const image = await Image.findById(id).lean();
+
+        if (!image) {
+            return NextResponse.json({ error: "Image not found" }, { status: 404 });
+        }
+
+        return NextResponse.json(image);
+    } catch (error) {
+        console.error("Error fetching image:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch image" },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    let imageId = "unknown";
+    try {
+        const { id } = await context.params;
+        imageId = id;
         const session = await getServerSession(authOptions);
 
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const id = params.id;
         if (!id) {
             return NextResponse.json({ error: "Missing image ID" }, { status: 400 });
         }
@@ -49,9 +74,9 @@ export async function DELETE(
 
         return NextResponse.json({ message: "Image deleted successfully" });
     } catch (error) {
-        console.error("Error deleting image:", error);
+        console.error("CRITICAL: Error deleting image with ID:", imageId, error);
         return NextResponse.json(
-            { error: "Failed to delete image" },
+            { error: "Failed to delete image", details: error instanceof Error ? error.message : "Unknown error" },
             { status: 500 }
         );
     }

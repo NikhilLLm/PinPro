@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         // Create new image (pin) with default values
         const imageData = {
             ...body,
+            userId: session.user.id,
             transformation: {
                 height: 1500,
                 width: 1000,
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
             },
         };
 
+        console.log("Saving new pin for user:", session.user.id);
         const newImage = await Image.create(imageData);
         return NextResponse.json(newImage);
     } catch (error) {

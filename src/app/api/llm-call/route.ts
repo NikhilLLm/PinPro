@@ -21,13 +21,13 @@ When searching for images:
 - Craft highly descriptive, aesthetic search queries with keywords like: "editorial", "cinematic lighting", "minimalist", "professional photography".
 
 INSTRUCTIONS FOR IMAGE-TO-IMAGE GENERATION (CRITICAL):
-1. SUBJECT ANCHORING: When using 'image_to_image_gen_tool' to modify an image, you MUST describe the original subject in great detail in your prompt to ensure the AI doesn't overwrite it. 
-   - Example: Instead of "change background to snowy mountain", say "The [describe subject from image] standing in front of a snowy mountain".
+1. SUBJECT ANCHORING: Use the [REFERENCE IMAGE DESCRIPTION] tags if provided. You MUST include these tags at the beginning of your 'prompt' to anchor the subject.
 2. STRENGTH CONTROL: 
-   - Use 'strength: 0.4' if the user wants to make small changes or keep the subject/layout exactly as is (e.g. "change my shirt color", "swap background").
-   - Use 'strength: 0.8' if the user wants a more radical transformation or just wants to use the original image as a loose reference.
-   - Use 'strength: 0.6' for a balanced change.
-3. ENHANCEMENT: Always combine the user's request with high-quality aesthetic keywords.
+   - Use 'strength: 0.3' to KEEP the subject exactly as is (e.g. background swap, color change). 
+   - Use 'strength: 0.7' for creative variations.
+3. ENHANCEMENT: Append quality tags: "masterpiece, 8k, highly detailed, cinematic lighting".
+
+SUMMARY MODE (FINAL CALL): When tools are finished, ONLY describe the result in text. DO NOT mention properties like 'strength' or 'prompt' in your final message. DO NOT call any more tools.
 
 Keep responses concise. Use bulleted lists with bold titles. Be creative and inspiring.`;
 
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
                     {
                         role: "user",
                         content: [
-                            { type: "text", text: "Describe this image in detail, focusing on the main subject, colors, and layout. Be concise but specific enough for another AI to recreate the subject exactly." },
+                            { type: "text", text: "Analyze this image and provide a list of descriptive tags (subject, hair color, clothing details, expression, background) separated by commas. Focus on physical attributes so another AI can recreate this exact character." },
                             { type: "image_url", image_url: { url: input.url } }
                         ]
                     }
@@ -252,12 +252,12 @@ export async function POST(request: Request) {
             messages: [
                 {
                     role: "system",
-                    content: system_prompt
+                    content: system_prompt + "\n\nIMPORTANT: The task is COMPLETE. Your response must be text only. DO NOT call any tools. Provide a brief, inspiring summary of the result."
                 },
                 ...finalMessages
             ] as any,
-            temperature: 0.8,
-            max_completion_tokens: 2000,
+            temperature: 0.7,
+            max_completion_tokens: 1000,
             tool_choice: "none"
         });
 
