@@ -13,11 +13,11 @@ export default withAuth(
 
                 //allow auth/public related routes
                 if (
-                    pathname.startsWith("/api/auth"),
-                    pathname === "/login",
-                    pathname === "/register",
-                    pathname === "/" || pathname.startsWith("/api/images")
-
+                    pathname.startsWith("/api/auth") ||
+                    pathname === "/login" ||
+                    pathname === "/register" ||
+                    pathname === "/" ||
+                    pathname.startsWith("/api/images")
                 ) {
                     return true;
                 }
