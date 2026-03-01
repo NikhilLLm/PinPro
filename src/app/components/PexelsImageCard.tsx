@@ -8,6 +8,7 @@ interface PexelsImageCardProps {
 }
 
 export default function PexelsImageCard({ photo, isSelected = false, onToggle }: PexelsImageCardProps) {
+    
     return (
         <div
             className={`break-inside-avoid group relative rounded-2xl overflow-hidden bg-slate-900 border-2 transition-all duration-300 mb-6 cursor-pointer ${isSelected
@@ -29,9 +30,11 @@ export default function PexelsImageCard({ photo, isSelected = false, onToggle }:
                 alt={photo.alt || ""}
                 className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                 style={{ backgroundColor: photo.avg_color ?? undefined }}
+                crossOrigin="anonymous"
+                loading="lazy"
             />
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-6 flex flex-col justify-end">
+            <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-6 flex flex-col justify-end">
                 <p className="text-white font-bold line-clamp-2 mb-2">
                     {photo.alt || "Inspiration"}
                 </p>

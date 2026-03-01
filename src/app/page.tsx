@@ -74,7 +74,7 @@ export default function Home() {
             <p className="text-slate-400 text-lg">Your personal space for managing and viewing your saved pins.</p>
           </div>
 
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-8 min-w-[280px] shadow-inner text-center">
+          <div className="bg-slate-950 border border-slate-800 rounded-lg p-8 min-w-70 shadow-inner text-center">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Saved Pins</p>
             <p className="text-7xl font-black text-primary leading-none">{userImages.length}</p>
           </div>

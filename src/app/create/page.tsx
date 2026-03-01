@@ -157,6 +157,7 @@ export default function CreatePinPage() {
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
+    console.log(selectedImages)
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -179,10 +180,13 @@ export default function CreatePinPage() {
 
     const handleSend = async () => {
         if (!prompt.trim() || isLoading) return;
-
+        if(selectedImages)console.log("none images is selecteddfg",selectedImages)
         const userMessage = {
             prompt: prompt.trim(),
-            url: referenceImage
+            data:{
+                url:referenceImage,
+                selected_images:Array.from(selectedImages)
+            }
         }
         setPrompt("");
         setReferenceImage(null);
