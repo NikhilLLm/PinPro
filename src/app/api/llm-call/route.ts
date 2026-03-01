@@ -83,7 +83,8 @@ export async function POST(request: Request) {
     // Step 5: Execute tool calls
     const toolResults = await executeToolCalls(message.tool_calls, input.url);
     const imageAnalysisContext = buildImageAnalysisContext(toolResults);
-   
+    console.log("Tools:", toolResults);
+    console.log("Tool results:", imageAnalysisContext);
 
     // Step 6: Build final LLM prompt with tool results
     const finalMessages = [
@@ -112,9 +113,7 @@ export async function POST(request: Request) {
         : "";
 
     // Step 8: Final LLM summary (no more tool calls) - ONLY if toolResults exist
-    let finalContent = "";
-    if(toolResults.length > 0) {
-        const finalResponse = await client.chat.completions.create({
+    const finalResponse = await client.chat.completions.create({
         model: "openai/gpt-oss-120b",
         messages: [
             {
@@ -136,11 +135,9 @@ export async function POST(request: Request) {
         temperature: 0.7,
         max_completion_tokens: 1000,
         tool_choice: "none"
-      });
-      finalContent = finalResponse.choices[0].message.content || "";
-    }
+    });
 
-    
+    let finalContent = finalResponse.choices[0].message.content || "";
     finalContent = stripMarkdownImages(finalContent);
     const completeResponse = finalContent + imageAnalysisContext;
 

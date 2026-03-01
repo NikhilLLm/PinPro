@@ -26,9 +26,7 @@ Keep responses concise. Use bulleted lists with bold titles. Be creative and ins
 
 const FINAL_SUMMARY_PROMPT = `You are a Pinterest visual aesthetics expert providing a brief summary of completed tasks.
 
-CRITICAL: The task is COMPLETE. Your response must be text only. DO NOT call any tools. 
-Provide a concise and yet useful summary of the results that got from tools and how they contribute to the user's creative vision. Focus on the aesthetic qualities and inspiration behind the images, not technical details.
-Use a friendly and encouraging tone to inspire the user.And Ask Follow Up questions to further understand the user's vision and offer more help.DO not inlcude image id's or any technical details about the tools used.`;
+CRITICAL: The task is COMPLETE. Your response must be text only. DO NOT call any tools. Provide a brief, inspiring summary.`;
 
 export function getSystemPrompt(): string {
     return SYSTEM_PROMPT;
