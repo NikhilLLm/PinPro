@@ -4,10 +4,12 @@ import { Sparkles } from "lucide-react";
 import AiImageCard from "./AiImageCard";
 
 interface AiResultSectionProps {
-    images: { url: string; prompt: string }[];
+    images: { url: string; prompt: string; pinUrl?: string }[];
+    approvedBgUrl: string | null;
+    onUseAsBackground: (url: string) => void;
 }
 
-export default function AiResultSection({ images }: AiResultSectionProps) {
+export default function AiResultSection({ images, approvedBgUrl, onUseAsBackground }: AiResultSectionProps) {
     if (images.length === 0) return null;
 
     return (
@@ -22,6 +24,9 @@ export default function AiResultSection({ images }: AiResultSectionProps) {
                         key={`ai-${i}`}
                         url={img.url}
                         prompt={img.prompt}
+                        pinUrl={img.pinUrl}
+                        isApprovedBg={approvedBgUrl === img.url}
+                        onUseAsBackground={() => onUseAsBackground(img.url)}
                     />
                 ))}
             </div>

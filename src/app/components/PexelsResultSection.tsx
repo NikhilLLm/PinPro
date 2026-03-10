@@ -3,17 +3,22 @@
 import { Image as ImageIcon } from "lucide-react";
 import { IPexelsPhoto } from "@/types/pexels";
 import PexelsImageCard from "./PexelsImageCard";
+import { selectedImages } from "@/types/hugging-flux";
 
 interface PexelsResultSectionProps {
     images: IPexelsPhoto[];
-    selectedImages: Set<number | string>;
+    selectedImages: selectedImages[];
     onToggleImage: (photo: IPexelsPhoto) => void;
+    approvedBgUrl: string | null;
+    onUseAsBackground: (url: string) => void;
 }
 
 export default function PexelsResultSection({
     images,
     selectedImages,
     onToggleImage,
+    approvedBgUrl,
+    onUseAsBackground,
 }: PexelsResultSectionProps) {
     if (images.length === 0) return null;
 
@@ -24,10 +29,10 @@ export default function PexelsResultSection({
                     <ImageIcon className="w-4 h-4" />
                     Visual Inspiration
                 </h3>
-                {selectedImages.size > 0 && (
+                {selectedImages.length > 0 && (
                     <div className="flex items-center gap-2">
                         <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold">
-                            {selectedImages.size} selected
+                            {selectedImages.length} selected
                         </span>
                     </div>
                 )}
@@ -37,8 +42,10 @@ export default function PexelsResultSection({
                     <PexelsImageCard
                         key={photo.id}
                         photo={photo}
-                        isSelected={selectedImages.has(photo.id)}
+                        isSelected={selectedImages.some(img => img.id === photo.id)}
                         onToggle={onToggleImage}
+                        isApprovedBg={approvedBgUrl === photo.src.large}
+                        onUseAsBackground={() => onUseAsBackground(photo.src.large)}
                     />
                 ))}
             </div>
