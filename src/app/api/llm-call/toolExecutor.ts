@@ -65,12 +65,15 @@ export async function cleanToolResult(toolName: string, result: any): Promise<an
     } else if (toolName === "text_to_image_tool") {
         return {
             status: "success",
-            message: "Image generated successfully (data hidden)."
+            message: "Visual background generated successfully. It is ready for the final Pin layout."
         };
-    } else if (toolName === "image_to_image_gen_tool") {
+    } else if (toolName === "web_search_tool") {
         return {
             status: "success",
-            message: "Reference image processed and new image generated successfully (data hidden)."
+            answer: result.answer,
+            results: result.results?.map((r: any) => ({ title: r.title, url: r.url })),
+            images: result.images?.slice(0, 3).map((img: any) => img.url),
+            message: result.answer || `Found trending layout examples.`
         };
     }
     return result;
@@ -82,11 +85,19 @@ export async function cleanToolResult(toolName: string, result: any): Promise<an
 export function buildImageAnalysisContext(toolResults: any[]): string {
     let context = "";
     toolResults.forEach(tr => {
-        if (tr.cleanedResult && tr.cleanedResult.photos) {
-            context += "\n[SEARCH RESULTS ANALYSIS]:\n";
-            tr.cleanedResult.photos.forEach((photo: any) => {
-                context += `- Image ${photo.id}: ${photo.analysis || photo.alt || "Professional photography"}\n`;
-            });
+        if (tr.cleanedResult) {
+            // Case 1: Pexels photos with analysis
+            if (tr.cleanedResult.photos) {
+                context += "\n[VISUAL CONTEXT (Staged Images)]:\n";
+                tr.cleanedResult.photos.forEach((photo: any, index: number) => {
+                    context += `- Option ${index + 1}: ${photo.analysis || photo.alt || "Professional photography"}\n`;
+                });
+            }
+            // Case 2: AI Generated images
+            else if (tr.cleanedResult.status === "success" && tr.cleanedResult.message) {
+                // If it's web search, we might have image count but the tool executor handles message
+                context += `\n[VISUAL CONTEXT]: ${tr.cleanedResult.message}\n`;
+            }
         }
     });
     return context;
@@ -97,18 +108,25 @@ export function buildImageAnalysisContext(toolResults: any[]): string {
  */
 export function separateResults(toolResults: any[], toolCalls: any[]) {
     const pexelsPhotos = toolResults
-        .filter(tr => tr.result && "photos" in tr.result)
-        .flatMap(tr => (tr.result as any).photos);
+        .filter(tr => {
+            const toolCall = toolCalls.find(tc => tc.id === tr.id);
+            return toolCall?.function.name === "Search_Images" && !!tr.result;
+        })
+        .flatMap(tr => (tr.result as any).photos || []);
 
     const generatedImages = toolResults
-        .filter(tr => tr.result && "format" in tr.result && (tr.result as any).format)
+        .filter(tr => {
+            const toolCall = toolCalls.find(tc => tc.id === tr.id);
+            const name = toolCall?.function.name || "";
+            return ["text_to_image_tool", "image_to_image_gen_tool"].includes(name) && !!tr.result;
+        })
         .map(tr => {
             const res = tr.result as any;
             const toolCall = toolCalls.find(tc => tc.id === tr.id);
             const toolArgs = JSON.parse(toolCall?.function.arguments || "{}");
 
             return {
-                url: res.format,
+                url: res.format || res.image || "",
                 prompt: toolArgs.query || toolArgs.prompt || "AI Generated"
             };
         });

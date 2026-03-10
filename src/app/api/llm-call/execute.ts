@@ -6,7 +6,8 @@ import { cleanToolResult } from "./toolExecutor";
  */
 export async function executeToolCalls(
     toolCalls: any[],
-    referenceImageUrl?: string
+    referenceImageUrl?: string,
+    selectedImages?: { id: string | number, url: string }[]
 ): Promise<any[]> {
     const toolResults = await Promise.all(
         toolCalls.map(async (toolCall) => {
@@ -15,8 +16,13 @@ export async function executeToolCalls(
             const toolArgs = JSON.parse(toolCall.function.arguments);
 
             // Inject reference image URL for image-to-image tool
-            if (toolName === "image_to_image_gen_tool" && referenceImageUrl) {
-                toolArgs.url = referenceImageUrl;
+            if (toolName === "image_to_image_gen_tool") {
+                if (referenceImageUrl) {
+                    toolArgs.url = referenceImageUrl;
+                } else if (selectedImages && selectedImages.length > 0) {
+                    // Fallback to the first selected image if no direct upload
+                    toolArgs.url = selectedImages[0].url;
+                }
             }
 
             const tool = tools.find((t) => t.name === toolName);
