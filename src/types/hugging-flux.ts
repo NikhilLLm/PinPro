@@ -11,10 +11,15 @@ export interface ImageOutput {
 
 //for image to image
 export interface OpenRouterInput {
-    data:{
-        url:string | null,
-        selected_images:(string | number)[],
+    data: {
+        url: string | null,
+        selected_images: selectedImages[],
     },
     prompt: string,
     strength?: number
+}
+
+export interface selectedImages {
+    id: string | number,
+    url: string
 }

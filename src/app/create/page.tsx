@@ -13,8 +13,40 @@ interface Message {
 }
 
 import { getLLMResponse } from "@/lib/llm/llm";
+import LayoutSelector from "../components/LayoutSelector";
+import { LayoutDefinition } from "@/types/llm-json";
 
-function renderMarkdown(text: string) {
+function LoadingSteps() {
+    const [step, setStep] = useState(0);
+    const steps = [
+        "Classifying your request...",
+        "Analyzing design context...",
+        "Generating initial layout...",
+        "Validating design quality...",
+        "Finalizing your Pin..."
+    ];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
+        }, 1800);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-ping" />
+                <span className="text-xs font-bold uppercase tracking-tight text-white/50">AI Engine</span>
+            </div>
+            <p className="text-sm font-medium text-slate-300 animate-in fade-in slide-in-from-left-2 duration-500">
+                {steps[step]}
+            </p>
+        </div>
+    );
+}
+
+export function renderMarkdown(text: string) {
     const lines = text.split("\n");
     const elements: React.ReactNode[] = [];
     let currentBlock: { type: "ul" | "ol" | "table" | "quote" | null; items: any[] } = { type: null, items: [] };
@@ -151,10 +183,14 @@ export default function CreatePinPage() {
     const [prompt, setPrompt] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [images, setImages] = useState<IPexelsPhoto[]>([]);
-    const [generatedImages, setGeneratedImages] = useState<{ url: string; prompt: string }[]>([]);
-    const [selectedImages, setSelectedImages] = useState<Set<number | string>>(new Set());
+    const [generatedImages, setGeneratedImages] = useState<{ url: string; prompt: string; layout?: any }[]>([]);
+    const [layouts, setLayouts] = useState<LayoutDefinition[]>([]);
+    const [selectedImages, setSelectedImages] = useState<Array<{ id: string | number, url: string }>>([]);
+    const [selectedLayout, setSelectedLayout] = useState<LayoutDefinition | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
+    const [currentPrompt, setCurrentPrompt] = useState<string>("");
+    const [approvedBackground, setApprovedBackground] = useState<{ url: string; source: "pexels" | "ai" | "upload" } | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     console.log(selectedImages)
@@ -162,35 +198,70 @@ export default function CreatePinPage() {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    // Prevent accidental refresh/close when data exists
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isLoading || messages.length > 0) {
+                e.preventDefault();
+                e.returnValue = ""; // Standard way to show a confirmation dialog
+            }
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [isLoading, messages]);
+
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
     const toggleImage = (photo: IPexelsPhoto) => {
         setSelectedImages(prev => {
-            const next = new Set(prev);
-            if (next.has(photo.id)) {
-                next.delete(photo.id);
+            const exists = prev.some(img => img.id === photo.id);
+            if (exists) {
+                return prev.filter(img => img.id !== photo.id);
             } else {
-                next.add(photo.id);
+                return [...prev, { id: photo.id, url: photo.src.large }];
             }
-            return next;
         });
     };
 
-    const handleSend = async () => {
-        if (!prompt.trim() || isLoading) return;
-        if(selectedImages)console.log("none images is selecteddfg",selectedImages)
+    const handleSend = async (e?: React.FormEvent | React.MouseEvent, layoutOverride?: LayoutDefinition) => {
+        if (e && 'preventDefault' in e) e.preventDefault();
+
+        const activePrompt = layoutOverride
+            ? `I've selected the layout: "${layoutOverride.name}". Let's move on to the next step!`
+            : prompt.trim();
+
+        if (!activePrompt && !layoutOverride) return;
+        if (isLoading) return;
+
         const userMessage = {
-            prompt: prompt.trim(),
-            data:{
-                url:referenceImage,
-                selected_images:Array.from(selectedImages)
+            prompt: activePrompt,
+            data: {
+                url: referenceImage,
+                selected_images: Array.from(selectedImages),
+                selectedLayout: selectedLayout ? selectedLayout : layoutOverride,
+                layouts: layouts, // Pass all seen layouts to maintain state
+                pexelsPhotos: images, // Pass all seen Pexels photos
+                generatedImages: generatedImages, // Pass all generated AI images
+                approvedBackground: approvedBackground,
+                hasBackground: !!approvedBackground,
+                hasText: prompt.trim().length > 10 // User provided specific text guidance
             }
+        };
+
+        if (!layoutOverride) {
+            setPrompt("");
+            setCurrentPrompt(activePrompt);
+            setMessages((prev) => [...prev, { role: "user", content: JSON.stringify(userMessage) }]);
+        } else {
+            setMessages((prev) => [...prev, {
+                role: "user",
+                content: `🚀 Layout selected: "${layoutOverride.name}". Moving forward with the design...`
+            }]);
         }
-        setPrompt("");
+
         setReferenceImage(null);
-        setMessages((prev) => [...prev, { role: "user", content: JSON.stringify(userMessage) }]);
         setIsLoading(true);
 
         try {
@@ -200,11 +271,21 @@ export default function CreatePinPage() {
 
             setMessages((prev) => [...prev, { role: "assistant", content: data.result }]);
 
+            if (data.data?.layouts) {
+                setLayouts(data.data.layouts);
+            } else {
+                setLayouts([]); // Clear if we got a final result
+            }
+
             if (data.data?.pexelsPhotos) {
                 setImages(data.data.pexelsPhotos);
             }
-            if (data.data?.generatedImages) {
-                setGeneratedImages(data.data.generatedImages);
+            if (data.data?.generatedImages && data.data.generatedImages.length > 0) {
+                const imagesWithPinUrl = data.data.generatedImages.map((img: any) => ({
+                    ...img,
+                    pinUrl: data.data.pinUrl || null
+                }));
+                setGeneratedImages(imagesWithPinUrl);
             }
         } catch (error) {
             console.error("Chat error:", error);
@@ -284,8 +365,8 @@ export default function CreatePinPage() {
                             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
                                 <Loader2 className="w-4 h-4 text-primary animate-spin" />
                             </div>
-                            <div className="bg-white/5 text-slate-400 p-4 rounded-2xl rounded-tl-none border border-white/5 animate-pulse">
-                                Thinking...
+                            <div className="bg-white/5 text-slate-400 p-4 rounded-2xl rounded-tl-none border border-white/5 min-w-[150px]">
+                                <LoadingSteps />
                             </div>
                         </div>
                     )}
@@ -293,7 +374,10 @@ export default function CreatePinPage() {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-6 border-t border-white/5 bg-slate-900/50">
+                <form
+                    onSubmit={(e) => handleSend(e)}
+                    className="p-6 border-t border-white/5 bg-slate-900/50"
+                >
                     <div className="flex items-start gap-4">
                         <FileUpload
                             onImageSelect={(base64) => setReferenceImage(base64)}
@@ -305,15 +389,14 @@ export default function CreatePinPage() {
                                 onChange={(e) => setPrompt(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
+                                        handleSend(e);
                                     }
                                 }}
                                 placeholder="Describe your pin idea..."
                                 className="w-full bg-slate-800 border-2 border-white/5 rounded-2xl p-4 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary/50 transition-all resize-none h-32"
                             />
                             <button
-                                onClick={handleSend}
+                                type="submit"
                                 className="absolute bottom-4 right-4 p-2 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                                 disabled={!prompt.trim() || isLoading}
                             >
@@ -321,23 +404,36 @@ export default function CreatePinPage() {
                             </button>
                         </div>
                     </div>
-                    <div className="flex gap-2 mt-4 text-[10px] uppercase font-bold text-slate-500 tracking-widest pl-1">
-                        <span className="flex items-center gap-1"><Wand2 className="w-3 h-3" /> Generate</span>
-                        <span className="opacity-20">•</span>
-                        <span className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> Suggest Images</span>
-                    </div>
+                </form>
+                {/* Meta Tags / Tips */}
+                <div className="flex gap-2 mt-4 text-[10px] uppercase font-bold text-slate-500 tracking-widest pl-6 pb-6">
+                    <span className="flex items-center gap-1 opacity-60"><Wand2 className="w-3 h-3" /> Generate</span>
+                    <span className="opacity-20">•</span>
+                    <span className="flex items-center gap-1 opacity-60"><ImageIcon className="w-3 h-3" /> Inspiration</span>
                 </div>
             </aside>
 
             {/* Right Main Content Area - Results */}
             <main className="flex-1 relative overflow-y-auto bg-slate-900/30 p-8">
-                {images.length > 0 || generatedImages.length > 0 ? (
+                {images.length > 0 || generatedImages.length > 0 || layouts.length > 0 ? (
                     <div className="space-y-12 pb-20">
-                        <AiResultSection images={generatedImages} />
+                        {layouts.length > 0 && (
+                            <LayoutSelector
+                                layouts={layouts}
+                                onSelect={(l) => handleSend(undefined, l)}
+                            />
+                        )}
+                        <AiResultSection
+                            images={generatedImages}
+                            approvedBgUrl={approvedBackground?.url || null}
+                            onUseAsBackground={(url) => setApprovedBackground({ url, source: "ai" })}
+                        />
                         <PexelsResultSection
                             images={images}
                             selectedImages={selectedImages}
                             onToggleImage={toggleImage}
+                            approvedBgUrl={approvedBackground?.url || null}
+                            onUseAsBackground={(url) => setApprovedBackground({ url, source: "pexels" })}
                         />
                     </div>
                 ) : (
@@ -354,8 +450,9 @@ export default function CreatePinPage() {
                             </div>
                         </div>
                     </div>
-                )}
-            </main>
-        </div>
+                )
+                }
+            </main >
+        </div >
     );
 }

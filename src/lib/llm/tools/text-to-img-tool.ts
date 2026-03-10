@@ -1,56 +1,76 @@
 import { HuggingFluxInput, ImageOutput } from "@/types/hugging-flux";
-import { InferenceClient } from "@huggingface/inference";
-import ImageKit from "imagekit";
 import { Tool } from "@/types/tool";
-import { Blob } from "buffer";
-const client = new InferenceClient(process.env.HF_TOKEN);
 
-async function generateImage(input: HuggingFluxInput): Promise<Blob | string> {
+const apiToken = process.env.CLOUDEFARE_TOKEN;
+const accountId = process.env.ACCOUNT_ID;
+
+async function generateImage(input: HuggingFluxInput): Promise<string> {
     try {
-        const image: Blob | string = await client.textToImage({
-            provider: "hf-inference",
-            model: "black-forest-labs/FLUX.1-schnell",
-            inputs: input.query,
-            parameters: { num_inference_steps: 5 },
-        })
-        return image
+        const formData = new FormData();
+        formData.append("prompt", input.query);
+        formData.append("width", "1000");
+        formData.append("height", "1500");
+
+        const response = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiToken}`,
+                },
+                body: formData,
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Cloudflare API error: ${response.status} ${errorText}`);
+            throw new Error(`Cloudflare API error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        let rawImage = result.result?.image || result.result?.[0] || result.image;
+
+        if (!rawImage) {
+            console.error("Cloudflare response missing image data:", result);
+            throw new Error("Missing image data in Cloudflare response");
+        }
+
+        // Strip whitespace from base64
+        if (typeof rawImage === 'string') {
+            rawImage = rawImage.replace(/\s/g, '');
+        }
+
+        // If already a data URI, return as-is
+        if (typeof rawImage === 'string' && rawImage.startsWith('data:')) {
+            return rawImage;
+        }
+
+        // Detect format
+        let prefix = 'data:image/png;base64,';
+        if (rawImage.startsWith('/9j/')) prefix = 'data:image/jpeg;base64,';
+        else if (rawImage.startsWith('iVBORw')) prefix = 'data:image/png;base64,';
+        else if (rawImage.startsWith('UklGR')) prefix = 'data:image/webp;base64,';
+
+        return `${prefix}${rawImage}`;
     } catch (error) {
         console.error("Error generating image:", error);
         throw error;
     }
 }
 
-//this will generate the blob
-
-const imagekit = new ImageKit({
-    publicKey: process.env.NEXT_PUBLIC_PUBLIC_KEY!.trim(),
-    privateKey: process.env.IMAGEKIT_PRIVATE_KEY!.trim(),
-    urlEndpoint: process.env.NEXT_PUBLIC_URL_ENDPOINT!.trim(),
-});
-
-
-
 //tool
 
 export const textToImageGenTool: Tool<HuggingFluxInput, ImageOutput> = {
     name: "text_to_image_tool",
-    description: "Generate image based on the prompt",
+    description: "Generate a high-quality image from a detailed visual prompt. Best results come from prompts that describe: composition/layout, specific objects, photography style, lighting, background surface, and quality keywords (4k, sharp focus). Never include text or quotes in the prompt.",
     execute: async (input) => {
         try {
-            const image = await generateImage(input)
-            //convert this image in base64
-            const arrayBuffer = await (image as Blob).arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer)
-            const base64 = "data:image/png;base64," + buffer.toString("base64")
-            return { format:base64 }
+            const base64 = await generateImage(input);
+            return { format: base64 };
         } catch (error) {
             console.error("Error generating image:", error);
             throw error;
         }
     }
 }
-
-
-
-//arrayBuffer convert binary to array style [12,312,...]
-//then Buffer conver that arrayBuffer ready to convert in Node js usable format and then convert in the base 64

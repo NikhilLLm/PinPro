@@ -1,17 +1,23 @@
-import { ImageOutput, OpenRouterInput } from "@/types/hugging-flux";
+import { ImageOutput } from "@/types/hugging-flux";
 import { Tool } from "@/types/tool";
+
+interface Img2ImgInput {
+    prompt: string;
+    url?: string;
+    strength?: number;
+}
 
 const apiToken = process.env.CLOUDEFARE_TOKEN;
 const accountId = process.env.ACCOUNT_ID;
 
-export async function generateImageCloudflare(input: OpenRouterInput): Promise<ImageOutput> {
+export async function generateImageCloudflare(input: Img2ImgInput): Promise<ImageOutput> {
     try {
         const formData = new FormData();
 
         // Add prompt and settings
         formData.append("prompt", input.prompt);
-        formData.append("width", "1024");
-        formData.append("height", "1024");
+        formData.append("width", "1000");
+        formData.append("height", "1500");
         if (input.strength !== undefined) {
             formData.append("strength", input.strength.toString());
         }
@@ -76,9 +82,9 @@ export async function generateImageCloudflare(input: OpenRouterInput): Promise<I
 }
 
 // img to img tool using Cloudflare AI
-export const ImagetoImageGen: Tool<OpenRouterInput, ImageOutput> = {
+export const ImagetoImageGen: Tool<Img2ImgInput, ImageOutput> = {
     name: "image_to_image_gen_tool",
-    description: "Generation of image to image based on provided image plus prompt using Cloudflare Flux AI",
+    description: "Transform a reference image using a detailed visual prompt. Describe the desired composition, style, and mood. Use 'strength' (0.3 = keep original, 0.7 = creative variation). Never include text in the prompt.",
     execute: async (input) => {
         try {
             const res = await generateImageCloudflare(input);
