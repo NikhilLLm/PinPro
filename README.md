@@ -17,10 +17,10 @@ User Topic:
 ```
 
 ### Screenshot
-```md
-## Test Image
 
+```md
 ![Topic Input](assets/Input.png)
+```
 
 ---
 
