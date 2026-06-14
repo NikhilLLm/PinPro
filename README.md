@@ -1,63 +1,290 @@
-# ImageKit AI Pin Pro
+# AI Pinterest Pin Generator
 
-A modern image generation and management platform that integrates advanced AI tools for creative design. This MVP focuses on a chat-driven workflow for generating and refining visual content.
+An AI-powered Pinterest content creation platform that automatically transforms a simple topic into Pinterest-ready pins using a multi-agent workflow.
 
-## 🚀 MVP Features
+Instead of manually creating content, selecting images, choosing layouts, and writing SEO metadata, the system orchestrates specialized AI agents that generate, validate, and assemble all required components into a final Pinterest pin.
 
-- **Chat-Driven AI Generation**: Interaction with a reasoning LLM to create, search, and refine image ideas.
-- **Image-to-Image Flux**: Advanced image modification using the **Flux-2** model on Cloudflare. Supporting:
-  - **Subject Anchoring**: Vision analysis ensures original subjects are preserved during edits.
-  - **Strength Control**: Adjustable denoising for subtle edits or radical transformations.
-- **Vision Integration**: Automatic description of uploaded images using **Llama-4 Maverick** for contextual reasoning.
-- **Inspiration Feed**: Integration with **Pexels API** to search for real-world photo inspiration.
-- **Image Management**: 
-  - Direct upload and storage via **ImageKit.io**.
-  - Programmatic deletion of assets from both Database (MongoDB) and Storage.
-- **User Authentication**: Secure access using **NextAuth.js**.
+---
 
-## 🏗️ Architecture & Tech Stack
+# Demo
 
-- **Frontend**: Next.js (App Router), React, Tailwind CSS.
-- **Backend**: Next.js API Routes (Edge-ready logic where applicable).
-- **Database**: MongoDB with Mongoose ODM.
-- **Storage**: ImageKit.io for optimized image serving and transformations.
-- **AI Infrastructure**:
-  - **OpenRouter**: Access to GPT-OSS-120B (Reasoning) and Llama-4 Maverick (Vision).
-  - **Cloudflare AI**: Flux-2-Klein model for image-to-image tasks.
-- **Authentication**: NextAuth.js.
+## Input
 
-## 📂 Folder Structure
+User Topic:
 
 ```text
-├── src/
-│   ├── app/                 # Next.js pages and API routes
-│   │   ├── api/             # Backend endpoints (Chat, Images, Auth)
-│   │   ├── components/      # Shared UI components
-│   │   └── create/          # Main AI design interface
-│   ├── lib/
-│   │   ├── llm/             # LLM logic and tool definitions
-│   │   │   └── tools/       # Individual tool implementations (Flux, Pexels)
-│   │   └── db.ts            # Database connection utility
-│   ├── models/              # Mongoose schemas (Image, ChatHistory, User)
-│   ├── types/               # TypeScript definitions
-│   └── middleware.ts        # Route protection
-├── public/                  # Static assets
-└── .env                     # Configuration (API Keys, DB Uri)
+7 AI Tools Every College Student Should Use in 2026
 ```
 
-## 🛠️ Getting Started
+### Screenshot
 
-1. **Environment Variables**: Clone `.env.example` and provide:
-   - `IMAGEKIT_PRIVATE_KEY` / `NEXT_PUBLIC_PUBLIC_KEY`
-   - `OPENROUTER_API_KEY`
-   - `ACCOUNT_ID` / `CLOUDEFARE_TOKEN` (Cloudflare)
-   - `MONGODB_URI`
+Replace with screenshot showing topic input.
 
-2. **Installation**:
-   npm install
-   ```
+```md
+![Topic Input](./assets/Input.png)
+```
 
-3. **Development**:
+---
 
-   npm run dev
-   ```
+## Generated Content
+
+The Content Agent generates:
+
+* Pinterest headline
+* Content points
+* Call-to-action
+
+### Screenshot
+
+```md
+![Content Agent Output](./assets/content_panel.png)
+```
+
+---
+
+## Generated Backgrounds
+
+The Visual Agent searches and recommends relevant backgrounds.
+
+### Screenshot
+
+```md
+![Background Selection](./assets/background.png)
+```
+
+---
+
+## Layout Recommendations
+
+The Layout Agent selects Pinterest-friendly layouts.
+
+### Screenshot
+
+```md
+![Layout Selection](./assets/layout.png)
+```
+
+---
+
+## Final Generated Pins
+
+Multiple Pinterest-ready variants are generated.
+
+### Screenshot
+
+```md
+![Generated Pins](./assets/Output.png)
+```
+
+---
+
+# Architecture
+
+## Workflow
+
+```text
+User Topic
+    ↓
+Content Agent
+    ↓
+Visual Agent
+    ↓
+Layout Agent
+    ↓
+SEO Agent
+    ↓
+PinProject Assembly
+    ↓
+Generator Agent
+    ↓
+Sharp.js Renderer
+    ↓
+Pinterest Pin Variants
+```
+
+---
+
+# Core Features
+
+## Content Generation
+
+Automatically generates:
+
+* Headlines
+* Steps / bullet points
+* Calls-to-action
+
+Optimized for Pinterest engagement.
+
+---
+
+## Background Discovery
+
+The system:
+
+* Searches relevant visual assets
+* Uses AI-generated fallback images
+* Stores selected assets in ImageKit
+
+---
+
+## Layout Recommendation
+
+The layout system:
+
+* Matches layouts to content type
+* Supports multiple layout candidates
+* Allows user refinement and selection
+
+---
+
+## SEO Generation
+
+Automatically generates:
+
+* Pinterest title
+* Pinterest description
+* Keywords
+* Hashtags
+
+---
+
+## Pin Rendering
+
+Selected assets are combined using:
+
+* Background image
+* Generated content
+* Layout zones
+
+and rendered into final Pinterest pins using Sharp.js.
+
+---
+
+# Tech Stack
+
+## Frontend
+
+* Next.js
+* React
+* Tailwind CSS
+* TypeScript
+
+## Backend
+
+* Next.js API Routes
+* Node.js
+
+## Database
+
+* MongoDB
+* Mongoose
+
+## Storage
+
+* ImageKit
+
+## AI
+
+* OpenRouter
+* GPT-OSS-120B
+* Llama Vision Models
+
+## Image Processing
+
+* Sharp.js
+
+---
+
+# Project Structure
+
+```text
+src/
+│
+├── app/
+│   ├── api/
+│   ├── create/
+│   └── explore/
+│
+├── lib/
+│   ├── agents/
+│   │   ├── content.ts
+│   │   ├── visual.ts
+│   │   ├── layout.ts
+│   │   ├── seo.ts
+│   │   ├── generator.ts
+│   │   └── critic.ts
+│   │
+│   └── workflow.ts
+│
+├── models/
+│
+└── components/
+```
+
+---
+
+# Current Status
+
+### Implemented
+
+* Multi-agent workflow
+* Content generation
+* Background recommendation
+* Layout recommendation
+* SEO generation
+* Pin rendering
+* ImageKit integration
+* Project persistence
+
+### In Progress
+
+* User-specific project ownership
+* Improved layout quality
+* Better visual ranking
+* Deployment optimization
+
+---
+
+# Future Improvements
+
+## Multi-User Architecture
+
+* User-owned projects
+* Shared workspaces
+* Project permissions
+
+## Better Layout Intelligence
+
+* Layout ranking model
+* Trend-aware recommendations
+* Pinterest engagement optimization
+
+## Advanced Agent System
+
+* Feedback loops between agents
+* Self-evaluation and refinement
+* Multi-pass generation
+
+## Analytics
+
+* Pin performance prediction
+* SEO scoring
+* Engagement estimation
+
+## Batch Generation
+
+Generate multiple Pinterest campaigns from a single topic.
+
+---
+
+# Why This Project?
+
+Pinterest content creation usually requires:
+
+1. Writing content
+2. Finding images
+3. Designing layouts
+4. Optimizing SEO
+
+This project automates the entire workflow through specialized AI agents while still allowing users to refine each stage before final generation.
