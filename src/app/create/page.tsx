@@ -1,458 +1,483 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, Image as ImageIcon, Wand2, User, Bot, Loader2 } from "lucide-react";
-import { IPexelsPhoto, IPexelsResponse } from "@/types/pexels";
+import React, { useState } from "react";
+import { Sparkles, Wand2, Loader2, ArrowRight } from "lucide-react";
 import AiResultSection from "../components/AiResultSection";
 import PexelsResultSection from "../components/PexelsResultSection";
 import FileUpload from "../components/FileUpload";
-
-interface Message {
-    role: "user" | "assistant";
-    content: string;
-}
-
-import { getLLMResponse } from "@/lib/llm/llm";
 import LayoutSelector from "../components/LayoutSelector";
 import { LayoutDefinition } from "@/types/llm-json";
+import { createProject, generateMinimalContent, generateBackground, generateLayout, generatePin } from "@/lib/llm/llm";
+import AiImageCard from "../components/AiImageCard";
 
-function LoadingSteps() {
-    const [step, setStep] = useState(0);
-    const steps = [
-        "Classifying your request...",
-        "Analyzing design context...",
-        "Generating initial layout...",
-        "Validating design quality...",
-        "Finalizing your Pin..."
-    ];
+type MiniContent = {
+    headline: string;
+    body: string[];
+    cta: string;
+};
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
-        }, 1800);
-        return () => clearInterval(interval);
-    }, []);
+type MiniBackground = {
+    url: string;
+    prompt: string;
+};
 
+const MINI_LAYOUTS: LayoutDefinition[] = [
+    {
+        id: "layout-a",
+        name: "Layout A",
+        description: "Simple headline, body, CTA.",
+        layoutType: "overlay",
+        columnCount: 1,
+        zones: {
+            title: { x: 110, y: 120, width: 780, height: 160, align: "center", role: "hook" },
+            body: { x: 110, y: 340, width: 780, height: 520, align: "left", role: "body" },
+            cta: { x: 110, y: 1180, width: 780, height: 120, align: "center", role: "cta" },
+        },
+        roleMap: { hook: ["title"], body: ["body"], cta: ["cta"] },
+        recommendedStyle: "bold",
+    },
+    {
+        id: "layout-b",
+        name: "Layout B",
+        description: "Two body blocks and a centered CTA.",
+        layoutType: "split",
+        columnCount: 2,
+        zones: {
+            title: { x: 90, y: 110, width: 820, height: 150, align: "center", role: "hook" },
+            left: { x: 90, y: 320, width: 360, height: 620, align: "left", role: "body" },
+            right: { x: 550, y: 320, width: 360, height: 620, align: "left", role: "body" },
+            cta: { x: 90, y: 1190, width: 820, height: 120, align: "center", role: "cta" },
+        },
+        roleMap: { hook: ["title"], body: ["left", "right"], cta: ["cta"] },
+        recommendedStyle: "editorial",
+    },
+    {
+        id: "layout-c",
+        name: "Layout C",
+        description: "Card-like list layout.",
+        layoutType: "card_grid",
+        columnCount: 1,
+        zones: {
+            title: { x: 95, y: 100, width: 810, height: 130, align: "center", role: "hook" },
+            card1: { x: 95, y: 310, width: 810, height: 180, align: "left", role: "step" },
+            card2: { x: 95, y: 520, width: 810, height: 180, align: "left", role: "step" },
+            card3: { x: 95, y: 730, width: 810, height: 180, align: "left", role: "step" },
+            cta: { x: 95, y: 1185, width: 810, height: 115, align: "center", role: "cta" },
+        },
+        roleMap: { hook: ["title"], step: ["card1", "card2", "card3"], cta: ["cta"] },
+        recommendedStyle: "minimal",
+    },
+];
+
+const MINI_BACKGROUNDS: MiniBackground[] = [
+    { url: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=80", prompt: "Coding desk" },
+    { url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80", prompt: "Developer workspace" },
+    { url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80", prompt: "Code editor screen" },
+    { url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80", prompt: "Abstract tech light" },
+];
+
+function makeMiniContent(topic: string): MiniContent {
+    return {
+        headline: topic ? `5 Ways to Win with ${topic}` : "5 Tips to Get Started",
+        body: ["1. Start with a clear goal", "2. Add context", "3. Use small steps", "4. Check the result", "5. Refine quickly"],
+        cta: "See the full breakdown",
+    };
+}
+
+function MiniPanel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
     return (
-        <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-tight text-white/50">AI Engine</span>
+        <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-xl shadow-black/20 flex flex-col justify-between">
+            <div>
+                <div className="mb-4 space-y-1">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-slate-300">{title}</h3>
+                    <p className="text-sm text-slate-500">{description}</p>
+                </div>
+                {children}
             </div>
-            <p className="text-sm font-medium text-slate-300 animate-in fade-in slide-in-from-left-2 duration-500">
-                {steps[step]}
-            </p>
-        </div>
+        </section>
     );
 }
 
-export function renderMarkdown(text: string) {
-    const lines = text.split("\n");
-    const elements: React.ReactNode[] = [];
-    let currentBlock: { type: "ul" | "ol" | "table" | "quote" | null; items: any[] } = { type: null, items: [] };
-
-    const flushBlock = () => {
-        if (!currentBlock.type) return;
-
-        const key = `block-${elements.length}`;
-        if (currentBlock.type === "ul") {
-            elements.push(<ul key={key} className="list-disc list-inside space-y-1.5 my-3 text-slate-300">{currentBlock.items}</ul>);
-        } else if (currentBlock.type === "ol") {
-            elements.push(<ol key={key} className="list-decimal list-inside space-y-1.5 my-3 text-slate-300">{currentBlock.items}</ol>);
-        } else if (currentBlock.type === "quote") {
-            elements.push(
-                <blockquote key={key} className="border-l-4 border-primary/40 bg-primary/5 p-4 my-4 rounded-r-xl italic text-slate-300">
-                    {currentBlock.items}
-                </blockquote>
-            );
-        } else if (currentBlock.type === "table") {
-            const rows = currentBlock.items;
-            if (rows.length < 2) return; // Need at least header and separator
-
-            const headerCells = rows[0].split("|").filter((c: string) => c.trim()).map((c: string, j: number) => (
-                <th key={`th-${j}`} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
-                    {formatInline(c.trim())}
-                </th>
-            ));
-
-            const bodyRows = rows.slice(2).map((row: string, i: number) => (
-                <tr key={`tr-${i}`} className="border-b border-slate-800/50 hover:bg-white/5 transition-colors">
-                    {row.split("|").filter((c: string) => c.trim()).map((c: string, j: number) => (
-                        <td key={`td-${j}`} className="px-4 py-3 text-sm text-slate-300">
-                            {formatInline(c.trim())}
-                        </td>
-                    ))}
-                </tr>
-            ));
-
-            elements.push(
-                <div key={key} className="my-4 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50">
-                    <table className="min-w-full border-collapse">
-                        <thead><tr className="bg-slate-800/50">{headerCells}</tr></thead>
-                        <tbody>{bodyRows}</tbody>
-                    </table>
-                </div>
-            );
-        }
-        currentBlock = { type: null, items: [] };
-    };
-
-    const formatInline = (line: string): React.ReactNode[] => {
-        const parts: React.ReactNode[] = [];
-        // Combined regex for bold and inline code
-        const regex = /(\*\*.+?\*\*|`.+?`)/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = regex.exec(line)) !== null) {
-            if (match.index > lastIndex) parts.push(line.slice(lastIndex, match.index));
-
-            const content = match[0];
-            if (content.startsWith("**")) {
-                parts.push(<strong key={match.index} className="text-white font-bold">{content.slice(2, -2)}</strong>);
-            } else if (content.startsWith("`")) {
-                parts.push(<code key={match.index} className="bg-slate-800 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{content.slice(1, -1)}</code>);
-            }
-            lastIndex = regex.lastIndex;
-        }
-        if (lastIndex < line.length) parts.push(line.slice(lastIndex));
-        return parts;
-    };
-
-    lines.forEach((line, i) => {
-        const trimmed = line.trim();
-
-        // Horizontal Rule
-        if (trimmed === "---") { flushBlock(); elements.push(<hr key={`hr-${i}`} className="my-6 border-white/10" />); return; }
-
-        // Headers
-        const headerMatch = trimmed.match(/^(#{1,6})\s+(.*)/);
-        if (headerMatch) {
-            flushBlock();
-            const level = headerMatch[1].length;
-            const text = headerMatch[2];
-            const className = level === 1 ? "text-2xl font-black text-white mt-8 mb-4 border-b border-white/10 pb-2" :
-                level === 2 ? "text-xl font-extrabold text-white mt-6 mb-3" :
-                    "text-lg font-bold text-white mt-4 mb-2";
-            elements.push(React.createElement(`h${level}`, { key: `h-${i}`, className }, formatInline(text)));
-            return;
-        }
-
-        // Blockquote
-        if (trimmed.startsWith(">")) {
-            if (currentBlock.type !== "quote") flushBlock();
-            currentBlock.type = "quote";
-            currentBlock.items.push(<div key={`q-${i}`} className="my-1">{formatInline(trimmed.replace(/^>\s*/, ""))}</div>);
-            return;
-        }
-
-        // Table Row
-        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
-            if (currentBlock.type !== "table") flushBlock();
-            currentBlock.type = "table";
-            currentBlock.items.push(trimmed);
-            return;
-        }
-
-        // Lists
-        const bulletMatch = trimmed.match(/^[-*•]\s+(.*)/);
-        const numberedMatch = trimmed.match(/^\d+\.\s+(.*)/);
-
-        if (bulletMatch) {
-            if (currentBlock.type !== "ul") flushBlock();
-            currentBlock.type = "ul";
-            currentBlock.items.push(<li key={`li-${i}`} className="pl-1">{formatInline(bulletMatch[1])}</li>);
-        } else if (numberedMatch) {
-            if (currentBlock.type !== "ol") flushBlock();
-            currentBlock.type = "ol";
-            currentBlock.items.push(<li key={`li-${i}`} className="pl-1">{formatInline(numberedMatch[1])}</li>);
-        } else if (trimmed === "") {
-            flushBlock();
-            elements.push(<div key={`space-${i}`} className="h-2" />);
-        } else {
-            flushBlock();
-            elements.push(<p key={`p-${i}`} className="my-2 leading-relaxed text-slate-300">{formatInline(trimmed)}</p>);
-        }
-    });
-
-    flushBlock();
-    return <div className="markdown-container">{elements}</div>;
-}
-
 export default function CreatePinPage() {
-    const [prompt, setPrompt] = useState("");
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [images, setImages] = useState<IPexelsPhoto[]>([]);
-    const [generatedImages, setGeneratedImages] = useState<{ url: string; prompt: string; layout?: any }[]>([]);
-    const [layouts, setLayouts] = useState<LayoutDefinition[]>([]);
-    const [selectedImages, setSelectedImages] = useState<Array<{ id: string | number, url: string }>>([]);
-    const [selectedLayout, setSelectedLayout] = useState<LayoutDefinition | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [referenceImage, setReferenceImage] = useState<string | null>(null);
-    const [currentPrompt, setCurrentPrompt] = useState<string>("");
-    const [approvedBackground, setApprovedBackground] = useState<{ url: string; source: "pexels" | "ai" | "upload" } | null>(null);
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const [topic, setTopic] = useState("");
+    const [content, setContent] = useState<MiniContent>(makeMiniContent(""));
+    const [layouts, setLayouts] = useState<LayoutDefinition[]>(MINI_LAYOUTS);
+    const [selectedLayout, setSelectedLayout] = useState<LayoutDefinition | null>(MINI_LAYOUTS[0]);
+    const [selectedBackground, setSelectedBackground] = useState<MiniBackground>(MINI_BACKGROUNDS[0]);
+    const [backgrounds, setBackgrounds] = useState<MiniBackground[]>(MINI_BACKGROUNDS);
+    const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+    const [isGeneratingPin, setIsGeneratingPin] = useState(false);
+    const [pinVariants, setPinVariants] = useState<{ id: string; name: string; url: string }[]>([]);
 
-    console.log(selectedImages)
-    const scrollToBottom = () => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+    // SEO States
+    const [seoKeywords, setSeoKeywords] = useState("");
+    const [seoHashtags, setSeoHashtags] = useState("");
 
-    // Prevent accidental refresh/close when data exists
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (isLoading || messages.length > 0) {
-                e.preventDefault();
-                e.returnValue = ""; // Standard way to show a confirmation dialog
-            }
-        };
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-    }, [isLoading, messages]);
+    // Prompt refine states
+    const [contentPrompt, setContentPrompt] = useState("");
+    const [layoutPrompt, setLayoutPrompt] = useState("");
+    const [backgroundPrompt, setBackgroundPrompt] = useState("");
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    const toggleImage = (photo: IPexelsPhoto) => {
-        setSelectedImages(prev => {
-            const exists = prev.some(img => img.id === photo.id);
-            if (exists) {
-                return prev.filter(img => img.id !== photo.id);
-            } else {
-                return [...prev, { id: photo.id, url: photo.src.large }];
-            }
-        });
-    };
-
-    const handleSend = async (e?: React.FormEvent | React.MouseEvent, layoutOverride?: LayoutDefinition) => {
-        if (e && 'preventDefault' in e) e.preventDefault();
-
-        const activePrompt = layoutOverride
-            ? `I've selected the layout: "${layoutOverride.name}". Let's move on to the next step!`
-            : prompt.trim();
-
-        if (!activePrompt && !layoutOverride) return;
-        if (isLoading) return;
-
-        const userMessage = {
-            prompt: activePrompt,
-            data: {
-                url: referenceImage,
-                selected_images: Array.from(selectedImages),
-                selectedLayout: selectedLayout ? selectedLayout : layoutOverride,
-                layouts: layouts, // Pass all seen layouts to maintain state
-                pexelsPhotos: images, // Pass all seen Pexels photos
-                generatedImages: generatedImages, // Pass all generated AI images
-                approvedBackground: approvedBackground,
-                hasBackground: !!approvedBackground,
-                hasText: prompt.trim().length > 10 // User provided specific text guidance
-            }
-        };
-
-        if (!layoutOverride) {
-            setPrompt("");
-            setCurrentPrompt(activePrompt);
-            setMessages((prev) => [...prev, { role: "user", content: JSON.stringify(userMessage) }]);
-        } else {
-            setMessages((prev) => [...prev, {
-                role: "user",
-                content: `🚀 Layout selected: "${layoutOverride.name}". Moving forward with the design...`
-            }]);
-        }
-
-        setReferenceImage(null);
-        setIsLoading(true);
-
+    const handleGenerateContent = async () => {
+        if (!topic.trim()) return;
+        setIsGeneratingContent(true);
         try {
-            const data = await getLLMResponse(userMessage, messages);
-
-            console.log(data);
-
-            setMessages((prev) => [...prev, { role: "assistant", content: data.result }]);
-
-            if (data.data?.layouts) {
-                setLayouts(data.data.layouts);
-            } else {
-                setLayouts([]); // Clear if we got a final result
-            }
-
-            if (data.data?.pexelsPhotos) {
-                setImages(data.data.pexelsPhotos);
-            }
-            if (data.data?.generatedImages && data.data.generatedImages.length > 0) {
-                const imagesWithPinUrl = data.data.generatedImages.map((img: any) => ({
-                    ...img,
-                    pinUrl: data.data.pinUrl || null
-                }));
-                setGeneratedImages(imagesWithPinUrl);
+            const res = await createProject(topic.trim());
+            if (res.success) {
+                if (res.content) {
+                    setContent(res.content);
+                }
+                if (res.layouts && res.layouts.length > 0) {
+                    setLayouts(res.layouts);
+                    setSelectedLayout(res.layouts[0]);
+                }
+                if (res.backgrounds && res.backgrounds.length > 0) {
+                    setBackgrounds(res.backgrounds);
+                    setSelectedBackground(res.backgrounds[0]);
+                }
             }
         } catch (error) {
-            console.error("Chat error:", error);
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: "Sorry, I encountered an error. Please try again." }
-            ]);
+            console.error("Failed to generate project content:", error);
         } finally {
-            setIsLoading(false);
+            setIsGeneratingContent(false);
         }
     };
 
+    const handleRefineContent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!contentPrompt.trim()) return;
+        setIsGeneratingContent(true);
+        try {
+            const res = await generateMinimalContent(`${topic} (Refinement: ${contentPrompt.trim()})`);
+            if (res.success && res.content) {
+                setContent(res.content);
+            }
+        } catch (error) {
+            console.error("Failed to refine content:", error);
+        } finally {
+            setIsGeneratingContent(false);
+            setContentPrompt("");
+        }
+    };
+
+    const handleRefineLayout = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!layoutPrompt.trim()) return;
+        try {
+            const res = await generateLayout(topic, layoutPrompt.trim());
+            if (res.success && res.layouts && res.layouts.length > 0) {
+                setLayouts(res.layouts);
+                setSelectedLayout(res.layouts[0]);
+            }
+        } catch (error) {
+            console.error("Failed to refine layout blueprint:", error);
+        }
+        setLayoutPrompt("");
+    };
+
+    const handleRefineBackground = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!backgroundPrompt.trim()) return;
+        try {
+            const res = await generateBackground(topic, backgroundPrompt.trim());
+            if (res.success && res.backgrounds && res.backgrounds.length > 0) {
+                setBackgrounds(res.backgrounds);
+                setSelectedBackground(res.backgrounds[0]);
+            }
+        } catch (error) {
+            console.error("Failed to generate backgrounds:", error);
+        }
+        setBackgroundPrompt("");
+    };
+
+    const handleGeneratePin = async () => {
+        if (!selectedLayout || !selectedBackground) return;
+        setIsGeneratingPin(true);
+        try {
+            const res = await generatePin({
+                topic,
+                content,
+                layout: selectedLayout,
+                background: selectedBackground
+            });
+            if (res.success && res.variants) {
+                setPinVariants(res.variants);
+                if (res.seo) {
+                    setSeoKeywords(res.seo.keywords ? res.seo.keywords.join(", ") : "");
+                    setSeoHashtags(res.seo.hashtags ? res.seo.hashtags.join(" ") : "");
+                }
+            }
+        } catch (error) {
+            console.error("Failed to generate pin variants:", error);
+        } finally {
+            setIsGeneratingPin(false);
+        }
+    };
+
+    const canGeneratePin = !!selectedLayout && !!selectedBackground;
+
     return (
-        <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-            {/* Left Sidebar - Chat & Control Panel (40%) */}
-            <aside className="w-full md:w-[40%] border-r border-white/5 bg-slate-950 flex flex-col relative z-20">
-                <div className="p-6 space-y-2 border-b border-white/5">
-                    <h1 className="text-2xl font-black gradient-text flex items-center gap-2">
-                        <Sparkles className="w-6 h-6 text-primary" />
-                        AI Generator
-                    </h1>
-                    <p className="text-sm text-slate-400">
-                        Tell me what you want to create, and I'll help you design the perfect pin.
-                    </p>
-                </div>
-
-                {/* Chat / Conversation Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
-                    <div className="glass-dark p-4 rounded-2xl border border-white/5 text-sm text-slate-300 leading-relaxed italic">
-                        "I can help you generate titles, descriptions, hashtags, or even search for inspiration images. What's on your mind?"
+        <div className="min-h-[calc(100vh-64px)] bg-slate-950 text-white">
+            <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+                {/* Header Board */}
+                <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-6 shadow-2xl shadow-black/20">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-2">
+                            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Creation Dashboard</p>
+                            <h1 className="text-3xl font-black tracking-tight lg:text-4xl">Step-by-Step Pinterest Creative Flow</h1>
+                            <p className="max-w-2xl text-sm text-slate-400">Type your main topic, customize copy in the Content Panel, choose structure, and select/upload backgrounds.</p>
+                        </div>
                     </div>
 
-                    {messages.map((msg, index) => (
-                        <div
-                            key={index}
-                            className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                        >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === "user" ? "bg-primary/20 text-primary" : "bg-white/5 text-slate-400"
-                                }`}>
-                                {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                            </div>
-                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "user"
-                                ? "bg-primary text-white rounded-tr-none"
-                                : "bg-white/5 text-slate-300 border border-white/5 rounded-tl-none"
-                                }`}>
-                                {msg.role === "assistant" ? renderMarkdown(msg.content) : (
-                                    (() => {
-                                        try {
-                                            const parsed = JSON.parse(msg.content);
-                                            if (parsed.prompt || parsed.url) {
-                                                return (
-                                                    <div className="space-y-3">
-                                                        {parsed.url && (
-                                                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-white/20 shadow-lg">
-                                                                <img
-                                                                    src={parsed.url}
-                                                                    alt="Reference"
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                            </div>
-                                                        )}
-                                                        <p>{parsed.prompt}</p>
-                                                    </div>
-                                                );
-                                            }
-                                        } catch (e) {
-                                            return msg.content;
-                                        }
-                                        return msg.content;
-                                    })()
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                    {isLoading && (
-                        <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                            </div>
-                            <div className="bg-white/5 text-slate-400 p-4 rounded-2xl rounded-tl-none border border-white/5 min-w-[150px]">
-                                <LoadingSteps />
-                            </div>
-                        </div>
-                    )}
-                    <div ref={chatEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <form
-                    onSubmit={(e) => handleSend(e)}
-                    className="p-6 border-t border-white/5 bg-slate-900/50"
-                >
-                    <div className="flex items-start gap-4">
-                        <FileUpload
-                            onImageSelect={(base64) => setReferenceImage(base64)}
-                            className="flex-shrink-0 pt-1"
-                        />
-                        <div className="flex-1 relative group">
-                            <textarea
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                        handleSend(e);
-                                    }
-                                }}
-                                placeholder="Describe your pin idea..."
-                                className="w-full bg-slate-800 border-2 border-white/5 rounded-2xl p-4 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-primary/50 transition-all resize-none h-32"
+                    <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto]">
+                        <div className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-4">
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Type Idea about pin to generate</label>
+                            <input
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                className="w-full bg-transparent text-lg font-semibold text-white outline-none placeholder:text-slate-600"
+                                placeholder="e.g. 5 Claude Code Tips for Developers"
                             />
-                            <button
-                                type="submit"
-                                className="absolute bottom-4 right-4 p-2 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                                disabled={!prompt.trim() || isLoading}
-                            >
-                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                            </button>
                         </div>
+                        <button
+                            onClick={handleGenerateContent}
+                            disabled={isGeneratingContent || !topic.trim()}
+                            className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-4 text-sm font-bold uppercase tracking-[0.25em] text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {isGeneratingContent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                            Generate
+                        </button>
                     </div>
-                </form>
-                {/* Meta Tags / Tips */}
-                <div className="flex gap-2 mt-4 text-[10px] uppercase font-bold text-slate-500 tracking-widest pl-6 pb-6">
-                    <span className="flex items-center gap-1 opacity-60"><Wand2 className="w-3 h-3" /> Generate</span>
-                    <span className="opacity-20">•</span>
-                    <span className="flex items-center gap-1 opacity-60"><ImageIcon className="w-3 h-3" /> Inspiration</span>
                 </div>
-            </aside>
 
-            {/* Right Main Content Area - Results */}
-            <main className="flex-1 relative overflow-y-auto bg-slate-900/30 p-8">
-                {images.length > 0 || generatedImages.length > 0 || layouts.length > 0 ? (
-                    <div className="space-y-12 pb-20">
-                        {layouts.length > 0 && (
+                {/* Main Content Area: Left Config Column & Right Result Column */}
+                <div className="mt-6 flex flex-col xl:flex-row gap-6 items-start">
+                    
+                    {/* Left Column: Configuration Panels */}
+                    <div className="w-full xl:w-[400px] shrink-0 flex flex-col gap-6">
+                    
+                    {/* Content Panel */}
+                    <MiniPanel title="Content Panel" description="Manually edit the copy or refine via AI prompt.">
+                        <div className="space-y-4">
+                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Headline</label>
+                                <input
+                                    type="text"
+                                    value={content.headline}
+                                    onChange={(e) => setContent({ ...content, headline: e.target.value })}
+                                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-semibold"
+                                />
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Body points</label>
+                                <div className="space-y-2">
+                                    {content.body.map((line, index) => (
+                                        <input
+                                            key={index}
+                                            type="text"
+                                            value={line}
+                                            onChange={(e) => {
+                                                const nextBody = [...content.body];
+                                                nextBody[index] = e.target.value;
+                                                setContent({ ...content, body: nextBody });
+                                            }}
+                                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-primary/50"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">CTA (Call-to-Action)</label>
+                                <input
+                                    type="text"
+                                    value={content.cta}
+                                    onChange={(e) => setContent({ ...content, cta: e.target.value })}
+                                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-medium"
+                                />
+                            </div>
+
+                            {/* Prompt to change */}
+                            <form onSubmit={handleRefineContent} className="mt-4 pt-4 border-t border-white/5 space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={contentPrompt}
+                                        onChange={(e) => setContentPrompt(e.target.value)}
+                                        placeholder="e.g. make the tone more playful"
+                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                    >
+                                        Refine
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </MiniPanel>
+
+                    {/* Layout Panel */}
+                    <MiniPanel title="Layout Panel" description="Select a layout or search a trending structure.">
+                        <div className="space-y-4">
                             <LayoutSelector
                                 layouts={layouts}
-                                onSelect={(l) => handleSend(undefined, l)}
+                                onSelect={setSelectedLayout}
+                                selectedLayoutId={selectedLayout?.id || selectedLayout?.name}
                             />
-                        )}
-                        <AiResultSection
-                            images={generatedImages}
-                            approvedBgUrl={approvedBackground?.url || null}
-                            onUseAsBackground={(url) => setApprovedBackground({ url, source: "ai" })}
-                        />
-                        <PexelsResultSection
-                            images={images}
-                            selectedImages={selectedImages}
-                            onToggleImage={toggleImage}
-                            approvedBgUrl={approvedBackground?.url || null}
-                            onUseAsBackground={(url) => setApprovedBackground({ url, source: "pexels" })}
-                        />
-                    </div>
-                ) : (
-                    <div className="absolute inset-0 flex items-center justify-center p-12">
-                        <div className="text-center space-y-6 max-w-md animate-in fade-in zoom-in duration-700">
-                            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto ring-1 ring-primary/20">
-                                <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+
+                            {/* Prompt to change */}
+                            <form onSubmit={handleRefineLayout} className="pt-4 border-t border-white/5 space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change layout</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={layoutPrompt}
+                                        onChange={(e) => setLayoutPrompt(e.target.value)}
+                                        placeholder="e.g. show editorial styles"
+                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                    >
+                                        Search
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </MiniPanel>
+
+                    {/* Background Panel */}
+                    <MiniPanel title="Background Panel" description="Choose backdrops, upload files or prompt AI.">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <FileUpload onImageSelect={(base64) => {
+                                    const next = { url: base64, prompt: "Uploaded background" };
+                                    setBackgrounds((prev) => [next, ...prev]);
+                                    setSelectedBackground(next);
+                                }} />
+                                <div>
+                                    <p className="text-sm font-semibold text-white">Upload image</p>
+                                    <p className="text-xs text-slate-500">Drop an image here or click</p>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <h2 className="text-2xl font-bold text-white tracking-tight">Your Result Area</h2>
-                                <p className="text-slate-400 leading-relaxed">
-                                    Use the side panel to start creating. Your generated pins, suggestions, and inspiration will appear here.
-                                </p>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                {backgrounds.map((bg) => (
+                                    <div
+                                        key={bg.url}
+                                        onClick={() => setSelectedBackground(bg)}
+                                        className={`group cursor-pointer overflow-hidden rounded-2xl border bg-slate-950 shadow-lg hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(233,30,99,0.15)] ${
+                                            selectedBackground.url === bg.url
+                                                ? "border-primary ring-2 ring-primary/20 shadow-[0_0_20px_rgba(233,30,99,0.15)]"
+                                                : "border-white/10"
+                                        }`}
+                                    >
+                                        <div className="aspect-[2/3] relative">
+                                            <img 
+                                                src={bg.url} 
+                                                alt={bg.prompt} 
+                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                            />
+                                            <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/90 to-transparent">
+                                                <p className="text-[10px] font-medium text-white line-clamp-2 leading-tight drop-shadow-md text-left">{bg.prompt}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Prompt to change */}
+                            <form onSubmit={handleRefineBackground} className="pt-4 border-t border-white/5 space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change background</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={backgroundPrompt}
+                                        onChange={(e) => setBackgroundPrompt(e.target.value)}
+                                        placeholder="e.g. generate a bright neon gradient"
+                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                    >
+                                        AI Gen
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </MiniPanel>
+                    </div>
+
+                    {/* Right Column: Generated Pins Section */}
+                    <div className="flex-1 w-full min-w-0 sticky top-6">
+                        <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-bold text-white">Final Output</h2>
+                            <p className="text-sm text-slate-500">Generate final pin variants only after content, layout, and background are selected.</p>
+                        </div>
+                        <button onClick={handleGeneratePin} disabled={!canGeneratePin || isGeneratingPin} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+                            {isGeneratingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            Generate Pin
+                        </button>
+                    </div>
+
+                    {pinVariants.length > 0 ? (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {pinVariants.map((variant) => (
+                                    <div key={variant.id} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-lg">
+                                        <div className="aspect-[2/3] relative">
+                                            <AiImageCard url={variant.url} prompt={variant.name} />
+                                        </div>
+                                        <div className="border-t border-white/5 p-3">
+                                            <p className="text-sm font-semibold text-white truncate">{variant.name}</p>
+                                            <p className="text-xs text-slate-500">Preview variant</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Title</label>
+                                    <input value={content.headline} readOnly className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Description</label>
+                                    <textarea value={`${content.body.join(" • ")} • ${content.cta}`} readOnly className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">SEO Keywords</label>
+                                    <textarea readOnly value={seoKeywords} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                </div>
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Hashtags</label>
+                                    <textarea readOnly value={seoHashtags} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                </div>
                             </div>
                         </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-8 text-center text-sm text-slate-500">Select all three panels, then click Generate Pin.</div>
+                    )}
+                        </section>
                     </div>
-                )
-                }
-            </main >
-        </div >
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    {selectedLayout && selectedBackground ? "Ready to generate pin variants." : "Pick one layout and one background to continue."}
+                </div>
+            </div>
+        </div>
     );
 }

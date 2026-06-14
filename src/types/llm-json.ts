@@ -100,3 +100,17 @@ export interface LayoutDefinition {
     discovered?: boolean;     // true if Vision AI generated it
     times_used?: number;
 }
+
+export interface AgentContentOutput {
+    success: true,
+        content: {
+            headline:string,
+            body: string[],
+            cta:string
+        }
+        backgrounds:string[],
+        seo: {
+            keywords:string[],
+            hashtags:string[]
+        }
+}

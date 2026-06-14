@@ -5,9 +5,10 @@ import { Check, Columns, Layers } from 'lucide-react';
 interface LayoutSelectorProps {
     layouts: LayoutDefinition[];
     onSelect: (layout: LayoutDefinition) => void;
+    selectedLayoutId?: string;
 }
 
-export default function LayoutSelector({ layouts, onSelect }: LayoutSelectorProps) {
+export default function LayoutSelector({ layouts, onSelect, selectedLayoutId }: LayoutSelectorProps) {
     if (!layouts || layouts.length === 0) return null;
 
     return (
@@ -24,43 +25,52 @@ export default function LayoutSelector({ layouts, onSelect }: LayoutSelectorProp
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {layouts.map((layout, idx) => (
-                    <div
-                        key={idx}
-                        className="group relative flex flex-col bg-slate-900/60 border border-white/10 rounded-3xl overflow-hidden hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(233,30,99,0.15)]"
-                    >
-                        {/* Preview Header */}
-                        <div className="aspect-[2/3] bg-slate-950/80 relative p-4 group-hover:bg-slate-950 transition-colors">
-                            <LayoutPreview layout={layout} />
-                        </div>
+            <div className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+                {layouts.map((layout, idx) => {
+                    const isSelected = selectedLayoutId === layout.id || selectedLayoutId === layout.name;
+                    return (
+                        <div
+                            key={idx}
+                            className={`group flex-none w-[220px] snap-start relative flex flex-col bg-slate-900/60 border rounded-3xl overflow-hidden hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(233,30,99,0.15)] ${
+                                isSelected ? "border-primary ring-2 ring-primary/20 shadow-[0_0_30px_rgba(233,30,99,0.15)]" : "border-white/10"
+                            }`}
+                        >
+                            {/* Preview Header */}
+                            <div className="aspect-[2/3] bg-slate-950/80 relative group-hover:bg-slate-950 transition-colors">
+                                <LayoutPreview layout={layout} />
+                            </div>
 
-                        {/* Info Section */}
-                        <div className="p-5 space-y-3 flex-1 flex flex-col">
-                            <div className="flex items-start justify-between gap-2">
-                                <h4 className="font-bold text-white leading-tight">{layout.name}</h4>
-                                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase text-slate-400">
-                                    <Columns className="w-3 h-3" />
-                                    {layout.columnCount} Col
+                            {/* Info Section */}
+                            <div className="p-5 space-y-3 flex-1 flex flex-col">
+                                <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-bold text-white leading-tight">{layout.name}</h4>
+                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase text-slate-400">
+                                        <Columns className="w-3 h-3" />
+                                        {layout.columnCount} Col
+                                    </div>
+                                </div>
+
+                                <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                                    {layout.description}
+                                </p>
+
+                                <div className="pt-2 mt-auto">
+                                    <button
+                                        onClick={() => onSelect(layout)}
+                                        className={`w-full py-3 text-xs font-bold uppercase tracking-widest rounded-xl border transition-all flex items-center justify-center gap-2 group-active:scale-95 ${
+                                            isSelected
+                                                ? "bg-primary text-white border-primary"
+                                                : "bg-white/5 hover:bg-primary text-white border-white/10 hover:border-primary"
+                                        }`}
+                                    >
+                                        {isSelected ? "Active Blueprint" : "Use This Blueprint"}
+                                        <Check className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             </div>
-
-                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                                {layout.description}
-                            </p>
-
-                            <div className="pt-2 mt-auto">
-                                <button
-                                    onClick={() => onSelect(layout)}
-                                    className="w-full py-3 bg-white/5 hover:bg-primary text-white text-xs font-bold uppercase tracking-widest rounded-xl border border-white/10 hover:border-primary transition-all flex items-center justify-center gap-2 group-active:scale-95"
-                                >
-                                    Use This Blueprint
-                                    <Check className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -81,7 +91,7 @@ function LayoutPreview({ layout }: { layout: LayoutDefinition }) {
                 <div className="border border-white/20"></div>
             </div>
 
-            <svg viewBox="0 0 1000 1000" className="w-full h-full drop-shadow-2xl">
+            <svg viewBox="0 0 1000 1500" className="w-full h-full drop-shadow-2xl">
                 {zones.map(([key, zone], i) => (
                     <g key={key}>
                         <rect

@@ -1,101 +1,142 @@
 const IK_ENDPOINT = process.env.NEXT_PUBLIC_URL_ENDPOINT || "https://ik.imagekit.io/rishi1256";
 
-// ─── PHASE 1: CASUAL CHAT ───────────────────────────────────────────
-const CHAT_PROMPT = `You are a Pinterest visual aesthetics expert and Creative Partner.
+// ─── UNIFIED PHASE-BASED SYSTEM PROMPT (token-optimized) ────────────
+const UNIFIED_PROMPT = `You are a Pinterest design expert. Help users create stunning Pins through 4 phases.
 
-Your goal is to brainstrom, suggest, and guide the user towards a perfect Pin design.
+PHASES:
+1. EXPLORE: User forming idea. Chat only, NO tools. Suggest next steps. Stay here until user confirms direction.
+   Exit→ user says "go ahead"/"find me"/"search for" → add <phase_transition>gather</phase_transition>
 
-CRITICAL INSTRUCTIONS:
-1. PERSONALITY: Warm, professional, and high-end. Talk like a design consultant but also remember to go step by step do not suggest whole plan at once ask user what he likes + add your suggestion also.
-2. NO TOOLS: In this phase, you are just chatting. Do NOT call 'Search_Images' or 'text_to_image_tool' unless the user is specifically ready to see results.
-3. THE SUGGESTION RULE: Always suggest the next step. 
-   - "Should I look for some trending layouts for your {niche}?"
-   - "Would you like me to find some inspiration images on Pexels?"
-   - "Should we generate a custom AI background for this?"
-4. BE CONVERSATIONAL: Acknowledge their ideas and add your artistic flair.`;
+2. GATHER: Goal clear. Use tools to find layouts/images. You pick which tool + how many results. Tell user what you're doing.
+   Exit→ user has layout + background + text content → add <phase_transition>build</phase_transition>
 
-// ─── PHASE 2: DISCOVERY & RESEARCH (TOOL ENABLED) ────────────────────
-const DISCOVERY_PROMPT = `You are an AI Research Agent specializing in Pinterest trends.
+3. BUILD: All assets ready. Output <pin_json> only. No tools. Follow [BUILD INSTRUCTIONS] below.
+   Exit→ user wants changes → add <phase_transition>refine</phase_transition>
 
-Your goal is to find inspiration, layouts, and background assets.
+4. REFINE: User wants changes. DIAGNOSE first:
+   - Wrong info/images → <phase_transition>gather</phase_transition>
+   - Reinterpret content → stay, regenerate pin_json
+   - Vague feedback → ask ONE question
 
-TOOL SELECTION LOGIC:
-- If the user wants "trending ideas", "best layouts", "templates", or "design structure" → Use 'web_search_tool'.
-- If the user wants "real photography", "inspiration", "background images", or "natural vibes" → Use 'Search_Images' (Pexels).
-- If the user wants something "unique", "custom", or "conceptual" → Use 'text_to_image_tool' (Flux).
+RULES: ASCII only in pin text. Be concise. Add <phase_transition> tag at END of response when transitioning.
+CRITICAL: NEVER search for literal 'pins', 'push-pins', or 'corkboards'. Use terms like 'layout', 'aesthetic', 'design', or 'photography'. When using tools, strip 'pin' or 'generation' from your search queries. For example, search for 'banana lifestyle' or 'banana aesthetic', NOT 'banana pin'.`;
 
-PEXELS QUERY GUIDELINES:
-1. BE SPECIFIC: Never search for generic terms like "background" or "AI".
-2. NICHE + VIBE: Combine the user's topic with a style. (e.g., "minimalist organic skin care", "cyberpunk neon city", "modern architecture interior").
-3. ASPECT RATIO: For Pinterest, portrait-oriented subjects work best.
-4. KEYWORDS: Use 3-5 descriptive nouns and adjectives.
-
-PROMPT CONSTRAINTS:
-1. DO NOT output <pin_json> yet. Your goal is only to provide the raw materials (Images and Layouts).
-2. If using 'web_search_tool', focus on niche-specific layout queries.
-3. Every response should showcase the 2-3 best finds and ask: "Which of these layouts or images should we use to build your Pin?"`;
-
-// ─── Phase 3: Dynamic Generation (Blueprint-Aware) ───
+// ─── BUILD FORMAT SPEC ──────────────────────────────────────────────
 export function getGenerationPrompt(layout?: any): string {
-    let roleInstructions = `    { "role": "hook",       "text": "<Concise Hook>", "colorOverride": "<hex>", "align": "center|left|right" },
-    { "role": "subheading", "text": "<Optional>", "colorOverride": "<hex>" },
-    { "role": "body",       "text": "<Content>", "colorOverride": "<hex>" },
-    { "role": "cta",        "text": "<Action>", "colorOverride": "<hex>" }`;
+    let roleInstructions = `    { "role": "hook", "text": "<Hook>", "colorOverride": "<hex>" },
+    { "role": "body", "text": "<Content>", "colorOverride": "<hex>" },
+    { "role": "cta", "text": "<Action>", "colorOverride": "<hex>" }`;
 
     if (layout?.roleMap) {
         const requiredRoles: string[] = [];
         Object.entries(layout.roleMap).forEach(([role, zones]: [string, any]) => {
             zones.forEach((_: any, idx: number) => {
-                requiredRoles.push(`    { "role": "${role}", "text": "<Text for ${role} ${idx + 1}>", "colorOverride": "<hex>" }`);
+                requiredRoles.push(`    { "role": "${role}", "text": "<${role} ${idx + 1}>", "colorOverride": "<hex>" }`);
             });
         });
-        if (requiredRoles.length > 0) {
-            roleInstructions = requiredRoles.join(",\n");
-        }
+        if (requiredRoles.length > 0) roleInstructions = requiredRoles.join(",\n");
     }
 
-    return `You are a Precise Layout Engineer.
-
-Your goal is to architecturalize a Pin based on the [SELECTED_LAYOUT_BLUEPRINT].
-
-CRITICAL INSTRUCTIONS:
-1. NO TOOLS: All assets are selected. Focus purely on text and JSON.
-2. ROLE SYNC: You MUST provide exactly the layers requested below. Each layer corresponds to a specific zone in the layout blueprint.
-3. CONTRAST: Use dark hex codes for light backgrounds and vice versa.
-4. ASCII ONLY: No emojis, smart quotes, or fancy dashes. Standard A-Z only.
-
-OUTPUT FORMAT:
+    return `\n[BUILD INSTRUCTIONS]:
+1. NO TOOLS. 2. Match layers to blueprint zones exactly. 3. Contrast colors. 4. ASCII only. 5. Max 45 chars/layer.
 <pin_json>
 {
-  "baseImageUrl": "<The final ImageKit URL or [GENERATED_IMAGE]>",
+  "baseImageUrl": "<ImageKit URL or [GENERATED_IMAGE]>",
   "style": "${layout?.recommendedStyle || "minimal"}",
   "layers": [
 ${roleInstructions}
   ]
 }
-</pin_json>
-
-Acknowledge the design and blueprint and ask if they need final tweaks.`;
+</pin_json>`;
 }
 
-export function getChatPrompt(): string { return CHAT_PROMPT; }
-export function getDiscoveryPrompt(): string { return DISCOVERY_PROMPT; }
+/**
+ * Build system prompt for a given phase
+ */
+export function buildPhasePrompt(
+    phase: string,
+    layout?: any,
+    topicContext?: string,
+    assetSummary?: string
+): string {
+    let prompt = UNIFIED_PROMPT;
+    prompt += `\n\n[CURRENT_PHASE]: ${phase.toUpperCase()}`;
+    if (topicContext) prompt += `\n${topicContext}`;
+    if (assetSummary) prompt += `\n${assetSummary}`;
+    if (phase === "build" || phase === "refine") prompt += getGenerationPrompt(layout);
+    return prompt;
+}
+
 export function getIkEndpoint(): string { return IK_ENDPOINT; }
 
 /**
- * Clean context history helper
+ * Compress a single message to its key facts (max ~100 chars)
+ */
+function summarizeMessage(role: string, content: string): string {
+    // Strip image data, markdown images, and JSON blobs
+    let clean = content
+        .replace(/data:image\/[^;]+;base64,[^"\s]+/g, "")
+        .replace(/!\[.*?\]\(.*?\)/g, "")
+        .replace(/<pin_json>[\s\S]*?<\/pin_json>/g, "[pin_json output]")
+        .replace(/<phase_transition>.*?<\/phase_transition>/g, "")
+        .replace(/\[IMAGE_DATA\]/g, "")
+        .replace(/\[IMAGE_ATTACHED\]/g, "")
+        .replace(/\n{2,}/g, "\n")
+        .trim();
+
+    // Try to parse JSON content (tool results etc)
+    try {
+        const parsed = JSON.parse(clean);
+        if (parsed && typeof parsed === 'object') {
+            if (parsed.url) return `[shared image]`;
+            if (parsed.prompt) return parsed.prompt.substring(0, 100);
+            return `[data]`;
+        }
+    } catch (e) { }
+
+    // Truncate long messages to key content
+    if (clean.length > 200) {
+        // Keep first 150 chars + last 50 chars to preserve the conclusion
+        clean = clean.substring(0, 150) + "..." + clean.substring(clean.length - 50);
+    }
+
+    return clean;
+}
+
+/**
+ * Clean and compress context history to fit within token budget.
+ * - Keeps last 2 messages at full length (most important for context)
+ * - Summarizes older messages to key points
+ * - Strips all binary data and long JSON
  */
 export function cleanContextHistory(history: any[], depth: number = 4): any[] {
-    return history.slice(-depth).map((msg: any) => {
-        let content = msg.content;
-        try {
-            const parsed = JSON.parse(content);
-            if (parsed && typeof parsed === 'object' && parsed.url) {
-                content = `${parsed.prompt || ""}\n\n[IMAGE_ATTACHED]`;
+    const recent = history.slice(-depth);
+    if (recent.length === 0) return [];
+
+    return recent.map((msg: any, idx: number) => {
+        const isRecent = idx >= recent.length - 2; // last 2 messages stay fuller
+        let content = msg.content || "";
+
+        if (isRecent) {
+            // Recent messages: strip binary but keep text
+            content = content
+                .replace(/data:image\/[^;]+;base64,[^"\s]+/g, "[IMAGE_DATA]")
+                .replace(/<pin_json>[\s\S]*?<\/pin_json>/g, "[pin design output]");
+            try {
+                const parsed = JSON.parse(content);
+                if (parsed?.url) content = `${parsed.prompt || ""}\n[IMAGE_ATTACHED]`;
+            } catch (e) { }
+
+            // Still truncate if very long
+            if (content.length > 400) {
+                content = content.substring(0, 350) + "...[truncated]";
             }
-        } catch (e) { }
-        content = content.replace(/data:image\/[^;]+;base64,[^"\s]+/g, "[IMAGE_DATA]");
-        return { role: msg.role, content: content };
+        } else {
+            // Older messages: aggressively summarize
+            content = summarizeMessage(msg.role, content);
+        }
+
+        return { role: msg.role, content };
     });
 }
 
@@ -110,12 +151,12 @@ export function buildUserMessage(
     selectedImages?: number[]
 ): string {
     let message = prompt;
-    if (imageDescription) message = `[REFERENCE IMAGE DESCRIPTION: ${imageDescription}]\n\n${message}`;
-    if (pexelsSelectedImageDescription) message = `[SELECTED IMAGES DESCRIPTION: ${pexelsSelectedImageDescription}]\n\n${message}`;
+    if (imageDescription) message = `[REF_IMAGE: ${imageDescription.substring(0, 100)}]\n${message}`;
+    if (pexelsSelectedImageDescription) message = `[SELECTED_STYLE: ${pexelsSelectedImageDescription.substring(0, 100)}]\n${message}`;
     if (isFileAttached) message += "\n[IMAGE_ATTACHED]";
     if (selectedImages && selectedImages.length > 0) {
         const ids = selectedImages.map(img => (typeof img === 'object' ? (img as any).id : img));
-        message += `\n\n[SELECTED_IMAGES:${ids.join(",")}]`;
+        message += `\n[SELECTED:${ids.join(",")}]`;
     }
     return message;
 }

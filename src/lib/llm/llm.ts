@@ -1,16 +1,91 @@
-import { OpenRouterInput } from "@/types/hugging-flux"
+import { LayoutDefinition } from "@/types/llm-json";
 
-export async function getLLMResponse(input:OpenRouterInput, history: any[] = []) {
-    const response = await fetch("/api/llm-call", {
+export async function createProject(topic: string) {
+    const response = await fetch("/api/llm-call/create", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ input, history })
-    })
+        body: JSON.stringify({ topic })
+    });
+    console.log(response)
     if (!response.ok) {
-        throw new Error("Failed to get LLM response")
+        const text = await response.text();
+        throw new Error(`createProject failed (${response.status}): ${text}`);
     }
-    const data = await response.json()
-    return data
+
+    return await response.json();
+}
+
+export async function generateMinimalContent(topic: string) {
+    const response = await fetch("/api/llm-call/generate-content", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ topic })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`generate-content failed (${response.status}): ${text}`);
+    }
+
+    return await response.json();
+}
+
+export async function generateBackground(topic: string, prompt?: string) {
+    const response = await fetch("/api/llm-call/generate-bg", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ topic, prompt })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`generate-bg failed (${response.status}): ${text}`);
+    }
+
+    return await response.json();
+}
+
+export async function generateLayout(topic: string, prompt?: string) {
+    const response = await fetch("/api/llm-call/generate-layout", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ topic, prompt })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`generate-layout failed (${response.status}): ${text}`);
+    }
+
+    return await response.json();
+}
+
+export async function generatePin(body: {
+    topic: string;
+    content: { headline: string; body: string[]; cta: string };
+    layout: LayoutDefinition;
+    background: { url: string; prompt: string };
+}) {
+    const response = await fetch("/api/llm-call/generate-pin", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`generate-pin failed (${response.status}): ${text}`);
+    }
+
+    return await response.json();
 }

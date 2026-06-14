@@ -5,6 +5,39 @@ const Groq_api = process.env.GROQ_API_KEY;
 const client = new Groq({ apiKey: Groq_api });
 
 /**
+ * Validate if a URL points to a common image format and is likely an image link
+ */
+export function isImageURL(url: string): boolean {
+    if (!url) return false;
+    const cleanUrl = url.split("?")[0].toLowerCase();
+    // Common non-image extensions often found in search results
+    const forbidden = [".html", ".php", ".aspx", ".asp", ".jsp", ".js", ".css", ".txt", ".pdf"];
+    if (forbidden.some(ext => cleanUrl.endsWith(ext))) return false;
+
+    // Must have an image extension or be a known image source
+    const allowed = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"];
+    const isImageExt = allowed.some(ext => cleanUrl.endsWith(ext));
+    const isKnownImageSource = url.includes("images.unsplash.com") || url.includes("images.pexels.com") || url.includes("i.pinimg.com");
+
+    return isImageExt || isKnownImageSource;
+}
+
+/**
+ * Heuristically check if an image is likely a Pinterest layout/design based on its description
+ */
+export function isLikelyLayoutImage(description: string): boolean {
+    if (!description) return false;
+    const text = description.toLowerCase();
+
+    // Explicitly reject literal push-pin/office-supply imagery
+    const forbidden = ["push pin", "cork board", "thumb tack", "office supply", "desktop", "stationery", "memo kit", "vision board mockup"];
+    if (forbidden.some(k => text.includes(k))) return false;
+
+    const keywords = ["layout", "design", "template", "pin", "poster", "infographic", "typography", "magazine", "blueprint", "grid", "wireframe"];
+    return keywords.some(k => text.includes(k));
+}
+
+/**
  * Analyze a single image with vision LLM to get aesthetic description
  * Used for Pexels search results to provide context
  */
@@ -69,19 +102,35 @@ export async function analyzeReferenceImage(url: string): Promise<string> {
 }
 
 /**
- * Analyze multiple Pexels images in parallel
+ * Heuristically detect literal push-pins, corkboards, and stationery items
+ */
+export function isPushPinOfficeSupply(description: string): boolean {
+    if (!description) return false;
+    const text = description.toLowerCase();
+    const forbidden = ["push pin", "cork board", "thumb tack", "office supply", "memo kit", "vision board mockup", "stationery", "tack"];
+    return forbidden.some(k => text.includes(k));
+}
+
+/**
+ * Analyze multiple Pexels images in parallel and filter out irrelevant/push-pin results
  */
 export async function analyzePexelsImages(photos: IPexelsPhoto[]): Promise<Array<IPexelsPhoto & { analysis: string }>> {
-    const photosWithAnalysis = await Promise.all(
-        photos.slice(0, 5).map(async (p: IPexelsPhoto) => {
+    const analyzed = await Promise.all(
+        photos.slice(0, 8).map(async (p: IPexelsPhoto) => {
             const description = await getImageDescription(p.src.large);
             return {
                 ...p,
-                analysis: description
+                analysis: description,
+                isIrrelevant: isPushPinOfficeSupply(description)
             };
         })
     );
-    return photosWithAnalysis;
+
+    // Filter out the push-pins to keep results high-quality and relevant
+    const filtered = analyzed.filter(p => !p.isIrrelevant);
+    console.log(`[Vision] Filtered ${analyzed.length - filtered.length} irrelevant push-pin images out of ${analyzed.length}.`);
+    
+    return filtered.map(({ isIrrelevant, ...rest }) => rest);
 }
 
 

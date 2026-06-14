@@ -84,10 +84,17 @@ export async function generateImageCloudflare(input: Img2ImgInput): Promise<Imag
 // img to img tool using Cloudflare AI
 export const ImagetoImageGen: Tool<Img2ImgInput, ImageOutput> = {
     name: "image_to_image_gen_tool",
-    description: "Transform a reference image using a detailed visual prompt. Describe the desired composition, style, and mood. Use 'strength' (0.3 = keep original, 0.7 = creative variation). Never include text in the prompt.",
+    description: "Transform an existing image or a structural layout mask into a final design. Use this EXCLUSIVELY in Phase 2/3 when a blueprint is selected to ensure the background fits the text zones. Strength is automatically handled for masks.",
     execute: async (input) => {
         try {
-            const res = await generateImageCloudflare(input);
+            // If the input likely contains a layout mask (base64)
+            // we use a higher strength to preserve the structural composition.
+            const isMask = input.url?.startsWith("data:");
+            const options = {
+                ...input,
+                strength: input.strength ?? (isMask ? 0.85 : 0.7)
+            };
+            const res = await generateImageCloudflare(options);
             return { format: res.format };
         } catch (error) {
             console.error(error);

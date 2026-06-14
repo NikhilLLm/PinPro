@@ -15,6 +15,23 @@ export async function executeToolCalls(
             console.log(`Executing tool: ${toolName}`);
             const toolArgs = JSON.parse(toolCall.function.arguments);
 
+            // Sanitize search queries to prevent "push-pin" ambiguity
+            if ((toolName === "web_search_tool" || toolName === "Search_Images") && toolArgs.query) {
+                const original = toolArgs.query;
+                // Strip standalone "pin", "pins", "generation" etc to avoid semantic confusion (e.g. "banana pin" -> "banana")
+                // Use whitespace padding and strict boundaries to prevent eating chars from adjacent words (e.g. "aesthetic layout" -> "aesthetic")
+                toolArgs.query = toolArgs.query
+                    .replace(/\s*\b(pins?|generation|ideas?|template|layout|creative|design)\b\s*/gi, " ")
+                    .replace(/\s+/g, " ")
+                    .trim() || original; 
+
+                // Minimum character check to ensure we don't return an empty or overly truncated query
+                if (toolArgs.query.length < 2) toolArgs.query = original;
+                if (toolArgs.query !== original) {
+                    console.log(`[Sanitizer] "${original}" -> "${toolArgs.query}"`);
+                }
+            }
+
             // Inject reference image URL for image-to-image tool
             if (toolName === "image_to_image_gen_tool") {
                 if (referenceImageUrl) {

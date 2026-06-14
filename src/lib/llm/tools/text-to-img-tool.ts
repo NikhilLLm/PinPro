@@ -63,7 +63,7 @@ async function generateImage(input: HuggingFluxInput): Promise<string> {
 
 export const textToImageGenTool: Tool<HuggingFluxInput, ImageOutput> = {
     name: "text_to_image_tool",
-    description: "Generate a high-quality image from a detailed visual prompt. Best results come from prompts that describe: composition/layout, specific objects, photography style, lighting, background surface, and quality keywords (4k, sharp focus). Never include text or quotes in the prompt.",
+    description: "Generate a NEW high-quality image from a detailed visual prompt. Use this for creative exploration or general background ideas. Does NOT support layout masking. Use image_to_image_gen_tool instead if a blueprint is active. Never include text in the prompt.",
     execute: async (input) => {
         try {
             const base64 = await generateImage(input);
