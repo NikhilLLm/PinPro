@@ -35,7 +35,7 @@ The Content Agent generates:
 ### Screenshot
 
 ```md
-![Content Agent Output](./assets/content_panel.png)
+![Content Panel](assets/content_panel.png)
 
 ---
 
@@ -46,7 +46,7 @@ The Visual Agent searches and recommends relevant backgrounds.
 ### Screenshot
 
 ```md
-![Background Selection](./assets/background.png)
+![Background Selection](assets/background.png)
 
 ---
 
@@ -57,7 +57,7 @@ The Layout Agent selects Pinterest-friendly layouts.
 ### Screenshot
 
 ```md
-![Layout Selection](./assets/layout.png)
+![Layout Selection](assets/layout.png)
 
 ---
 
@@ -68,7 +68,7 @@ Multiple Pinterest-ready variants are generated.
 ### Screenshot
 
 ```md
-![Generated Pins](./assets/Output.png)
+![Final Output](assets/Output.png)
 
 ---
 
