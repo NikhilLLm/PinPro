@@ -46,7 +46,7 @@ The Visual Agent searches and recommends relevant backgrounds.
 ### Screenshot
 
 ```md
-![Background Selection](assets/background.png)
+![Background Selection](assets\background.png)
 ```
 ---
 
