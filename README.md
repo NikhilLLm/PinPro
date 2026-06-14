@@ -17,12 +17,10 @@ User Topic:
 ```
 
 ### Screenshot
-
-Replace with screenshot showing topic input.
-
 ```md
-![Topic Input](./assets/Input.png)
-```
+## Test Image
+
+![Topic Input](assets/Input.png)
 
 ---
 
@@ -38,7 +36,6 @@ The Content Agent generates:
 
 ```md
 ![Content Agent Output](./assets/content_panel.png)
-```
 
 ---
 
@@ -50,7 +47,6 @@ The Visual Agent searches and recommends relevant backgrounds.
 
 ```md
 ![Background Selection](./assets/background.png)
-```
 
 ---
 
@@ -62,7 +58,6 @@ The Layout Agent selects Pinterest-friendly layouts.
 
 ```md
 ![Layout Selection](./assets/layout.png)
-```
 
 ---
 
@@ -74,7 +69,6 @@ Multiple Pinterest-ready variants are generated.
 
 ```md
 ![Generated Pins](./assets/Output.png)
-```
 
 ---
 
@@ -200,26 +194,63 @@ and rendered into final Pinterest pins using Sharp.js.
 
 ```text
 src/
-│
 ├── app/
 │   ├── api/
+│   │   ├── auth/
+│   │   ├── imagekit-auth/
+│   │   ├── images/
+│   │   └── llm-call/
+│   │       ├── create/
+│   │       ├── generate-bg/
+│   │       ├── generate-content/
+│   │       ├── generate-layout/
+│   │       ├── generate-pin/
+│   │       ├── workflow.ts
+│   │       ├── generatePin.ts
+│   │       ├── prompts.ts
+│   │       ├── toolExecutor.ts
+│   │       ├── validation.ts
+│   │       └── vision.ts
+│   ├── components/
 │   ├── create/
-│   └── explore/
+│   ├── login/
+│   ├── register/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
 │
 ├── lib/
 │   ├── agents/
 │   │   ├── content.ts
-│   │   ├── visual.ts
-│   │   ├── layout.ts
-│   │   ├── seo.ts
+│   │   ├── critic.ts
 │   │   ├── generator.ts
-│   │   └── critic.ts
-│   │
-│   └── workflow.ts
+│   │   ├── index.ts
+│   │   ├── layout.ts
+│   │   ├── planner.ts
+│   │   ├── seoagent.ts
+│   │   ├── types.ts
+│   │   └── visual.ts
+│   ├── llm/
+│   │   ├── llm.ts
+│   │   └── tools/
+│   ├── api-client.ts
+│   ├── auth.ts
+│   ├── db.ts
+│   ├── layout-engine.ts
+│   ├── sharp-pin-builder.ts
+│   └── styles.ts
 │
 ├── models/
+│   ├── Image.ts
+│   ├── LayoutTemplate.ts
+│   └── User.ts
 │
-└── components/
+└── types/
+    ├── hugging-flux.ts
+    ├── llm-json.ts
+    ├── pexels.ts
+    ├── tool.ts
+    └── web-tool.ts
 ```
 
 ---
