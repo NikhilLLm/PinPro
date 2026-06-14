@@ -17,10 +17,8 @@ User Topic:
 ```
 
 ### Screenshot
-
-```md
 ![Topic Input](assets/Input.png)
-```
+
 
 ---
 
@@ -33,10 +31,8 @@ The Content Agent generates:
 * Call-to-action
 
 ### Screenshot
-
-```md
 ![Content Panel](assets/content_panel.png)
-```
+
 ---
 
 ## Generated Backgrounds
@@ -44,10 +40,8 @@ The Content Agent generates:
 The Visual Agent searches and recommends relevant backgrounds.
 
 ### Screenshot
+![Background Selection](assets/background.png)
 
-```md
-![Background Selection](assets\background.png)
-```
 ---
 
 ## Layout Recommendations
@@ -55,10 +49,8 @@ The Visual Agent searches and recommends relevant backgrounds.
 The Layout Agent selects Pinterest-friendly layouts.
 
 ### Screenshot
-
-```md
 ![Layout Selection](assets/layout.png)
-```
+
 ---
 
 ## Final Generated Pins
@@ -66,10 +58,8 @@ The Layout Agent selects Pinterest-friendly layouts.
 Multiple Pinterest-ready variants are generated.
 
 ### Screenshot
-
-```md
 ![Final Output](assets/Output.png)
-```
+
 ---
 
 # Architecture
