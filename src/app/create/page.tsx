@@ -271,10 +271,10 @@ export default function CreatePinPage() {
                 </div>
 
                 {/* Main Content Area: Left Config Column & Right Result Column */}
-                <div className="mt-6 flex flex-col xl:flex-row gap-6 items-start">
+                <div className="mt-6 flex flex-col gap-6 items-start">
 
                     {/* Left Column: Configuration Panels */}
-                    <div className="w-full xl:w-[400px] shrink-0 flex flex-col gap-6">
+                    <div className="w-full shrink-0 flex flex-col gap-6">
 
                         {/* Content Panel */}
                         <MiniPanel title="Content Panel" description="Manually edit the copy or refine via AI prompt.">
