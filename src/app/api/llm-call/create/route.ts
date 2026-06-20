@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     let topic = "";
     try {
         const body = await request.json();
-        console.log(body);
+        
         topic = (body.topic || "").trim();
     } catch {
         return Response.json({ error: "Invalid JSON body" }, { status: 400 });
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     // 3. Run the full workflow
     const result = await executeWorkflow(userId, topic);
-    console.log(result)
+
 
     if (!result.success || !result.project) {
         return Response.json(
@@ -91,7 +91,9 @@ export async function POST(request: Request) {
             recommendedStyle: "bold"
         };
     });
-
+    // console.log("CONTENT",content)
+    // console.log("LAYOUT",layouts)
+    // console.log("BACKGROUND",backgrounds)
     return Response.json({
         success: true,
         projectId: project.projectId,

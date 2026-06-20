@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import Groq from "groq-sdk";
+import { runLayoutAgent } from "@/lib/agents";
 
 const AVAILABLE_LAYOUTS = [
     {
@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     if (!session || !session.user) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     let topic = "";
     let prompt = "";
@@ -66,45 +67,52 @@ export async function POST(request: Request) {
         return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    if (!topic) {
+        return Response.json({ error: "Topic is required" }, { status: 400 });
+    }
+
     let layouts = AVAILABLE_LAYOUTS;
 
-    if (prompt) {
-        try {
-            const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-            const response = await groqClient.chat.completions.create({
-                model: "openai/gpt-oss-120b",
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are a layout selection assistant. You will receive a layout refinement prompt and a list of layouts.
-Return a sorted JSON array of layout IDs in preference order, based on the prompt. Example: ["layout-b", "layout-a", "layout-c"]. Output ONLY JSON.`
-                    },
-                    {
-                        role: "user",
-                        content: `Prompt: ${prompt}\nLayout Options: ${JSON.stringify(AVAILABLE_LAYOUTS.map(l => ({ id: l.id, name: l.name, description: l.description })))}`
-                    }
-                ],
-                temperature: 0.3,
-                max_completion_tokens: 100
-            });
-            const text = response.choices[0].message.content || "";
-            const match = text.match(/\[[\s\S]*\]/);
-            if (match) {
-                const order = JSON.parse(match[0]);
-                if (Array.isArray(order)) {
-                    layouts = [...AVAILABLE_LAYOUTS].sort((a, b) => {
-                        const idxA = order.indexOf(a.id);
-                        const idxB = order.indexOf(b.id);
-                        if (idxA === -1 && idxB === -1) return 0;
-                        if (idxA === -1) return 1;
-                        if (idxB === -1) return -1;
-                        return idxA - idxB;
-                    });
-                }
-            }
-        } catch (e) {
-            console.error("Layout sorting failed:", e);
+    // Run layout agent
+    const projectId = `ephemeral_${Date.now()}`;
+    const context: any = {
+        userId,
+        projectId,
+        project: {
+            projectId,
+            userId,
+            topic,
+            contentOptions: [],
+            layoutOptions: AVAILABLE_LAYOUTS.map(l => ({
+                id: l.id,
+                layoutName: l.name,
+                layoutZones: l.zones,
+                reasoning: l.description || ""
+            })),
+            backgroundOptions: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        input: { 
+            topic: prompt || topic, 
+            prompt: prompt || topic 
         }
+    };
+
+    try {
+        const agentResult = await runLayoutAgent(context);
+        if (agentResult.success && agentResult.data) {
+            const selectedLayoutId = agentResult.data.id;
+            layouts = [...AVAILABLE_LAYOUTS].sort((a, b) => {
+                if (a.id === selectedLayoutId) return -1;
+                if (b.id === selectedLayoutId) return 1;
+                return 0;
+            });
+        } else {
+            throw new Error(agentResult.error || "Layout agent failed");
+        }
+    } catch (e) {
+        console.error("[refine-layout] agent failed:", e);
     }
 
     return Response.json({ success: true, layouts });

@@ -228,18 +228,15 @@
 import {
     AgentContext,
     PinProjectState,
-    PlannerOutput,
     ContentOutput,
     VisualOutput,
     LayoutOutput
 } from "@/lib/agents";
 
 import {
-    runPlannerAgent,
     runContentAgent,
     runVisualAgent,
     runLayoutAgent,
-    criticizePlannerOutput,
     criticizeContentOutput,
     criticizeVisualOutput,
     criticizeLayoutOutput
@@ -296,25 +293,6 @@ export async function executeWorkflow(
             }
         };
         console.log(project)
-
-        // ─────────────────────────────
-        // 1. PLANNER
-        // ─────────────────────────────
-
-        // const plannerResult = await runAgentWithRetry(
-        //     "planner",
-        //     () => runPlannerAgent(context),
-        //     criticizePlannerOutput
-        // );
-
-        // if (!plannerResult.success) {
-        //     return {
-        //         success: false,
-        //         error: plannerResult.error
-        //     };
-        // }
-
-        // project.pinIdea = plannerResult.data as PlannerOutput;
 
         // ─────────────────────────────
         // 2. CONTENT
