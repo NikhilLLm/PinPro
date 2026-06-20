@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, Wand2, Loader2, ArrowRight } from "lucide-react";
 import AiResultSection from "../components/AiResultSection";
 import PexelsResultSection from "../components/PexelsResultSection";
@@ -117,12 +117,28 @@ export default function CreatePinPage() {
     const [contentPrompt, setContentPrompt] = useState("");
     const [layoutPrompt, setLayoutPrompt] = useState("");
     const [backgroundPrompt, setBackgroundPrompt] = useState("");
+    const [projectId, setProjectId] = useState("")
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (topic.trim() || pinVariants.length > 0) {
+                e.preventDefault();
+                e.returnValue = "Are you sure you want to leave? Your progress will be lost.";
+                return e.returnValue;
+            }
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [topic, pinVariants]);
 
     const handleGenerateContent = async () => {
         if (!topic.trim()) return;
         setIsGeneratingContent(true);
         try {
             const res = await createProject(topic.trim());
+            console.log(res)
             if (res.success) {
                 if (res.content) {
                     setContent(res.content);
@@ -134,6 +150,9 @@ export default function CreatePinPage() {
                 if (res.backgrounds && res.backgrounds.length > 0) {
                     setBackgrounds(res.backgrounds);
                     setSelectedBackground(res.backgrounds[0]);
+                }
+                if (res.projectId) {
+                    setProjectId(projectId)
                 }
             }
         } catch (error) {
@@ -195,6 +214,7 @@ export default function CreatePinPage() {
         setIsGeneratingPin(true);
         try {
             const res = await generatePin({
+                projectId,
                 topic,
                 content,
                 layout: selectedLayout,
@@ -252,223 +272,217 @@ export default function CreatePinPage() {
 
                 {/* Main Content Area: Left Config Column & Right Result Column */}
                 <div className="mt-6 flex flex-col xl:flex-row gap-6 items-start">
-                    
+
                     {/* Left Column: Configuration Panels */}
                     <div className="w-full xl:w-[400px] shrink-0 flex flex-col gap-6">
-                    
-                    {/* Content Panel */}
-                    <MiniPanel title="Content Panel" description="Manually edit the copy or refine via AI prompt.">
-                        <div className="space-y-4">
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Headline</label>
-                                <input
-                                    type="text"
-                                    value={content.headline}
-                                    onChange={(e) => setContent({ ...content, headline: e.target.value })}
-                                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-semibold"
-                                />
-                            </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Body points</label>
-                                <div className="space-y-2">
-                                    {content.body.map((line, index) => (
+                        {/* Content Panel */}
+                        <MiniPanel title="Content Panel" description="Manually edit the copy or refine via AI prompt.">
+                            <div className="space-y-4">
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Headline</label>
+                                    <input
+                                        type="text"
+                                        value={content.headline}
+                                        onChange={(e) => setContent({ ...content, headline: e.target.value })}
+                                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-semibold"
+                                    />
+                                </div>
+
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Body points</label>
+                                    <div className="space-y-2">
+                                        {content.body.map((line, index) => (
+                                            <input
+                                                key={index}
+                                                type="text"
+                                                value={line}
+                                                onChange={(e) => {
+                                                    const nextBody = [...content.body];
+                                                    nextBody[index] = e.target.value;
+                                                    setContent({ ...content, body: nextBody });
+                                                }}
+                                                className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-primary/50"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">CTA (Call-to-Action)</label>
+                                    <input
+                                        type="text"
+                                        value={content.cta}
+                                        onChange={(e) => setContent({ ...content, cta: e.target.value })}
+                                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-medium"
+                                    />
+                                </div>
+
+                                {/* Prompt to change */}
+                                <form onSubmit={handleRefineContent} className="mt-4 pt-4 border-t border-white/5 space-y-2">
+                                    <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change</label>
+                                    <div className="flex gap-2">
                                         <input
-                                            key={index}
                                             type="text"
-                                            value={line}
-                                            onChange={(e) => {
-                                                const nextBody = [...content.body];
-                                                nextBody[index] = e.target.value;
-                                                setContent({ ...content, body: nextBody });
-                                            }}
-                                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-primary/50"
+                                            value={contentPrompt}
+                                            onChange={(e) => setContentPrompt(e.target.value)}
+                                            placeholder="e.g. make the tone more playful"
+                                            className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
                                         />
+                                        <button
+                                            type="submit"
+                                            className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                        >
+                                            Refine
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </MiniPanel>
+
+                        {/* Layout Panel */}
+                        <MiniPanel title="Layout Panel" description="Select a layout or search a trending structure.">
+                            <div className="space-y-4">
+                                <LayoutSelector
+                                    layouts={layouts}
+                                    onSelect={setSelectedLayout}
+                                    selectedLayoutId={selectedLayout?.id || selectedLayout?.name}
+                                />
+
+                                {/* Prompt to change */}
+                                <form onSubmit={handleRefineLayout} className="pt-4 border-t border-white/5 space-y-2">
+                                    <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change layout</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={layoutPrompt}
+                                            onChange={(e) => setLayoutPrompt(e.target.value)}
+                                            placeholder="e.g. show editorial styles"
+                                            className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                        >
+                                            Search
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </MiniPanel>
+
+                        {/* Background Panel */}
+                        <MiniPanel title="Background Panel" description="Choose backdrops, upload files or prompt AI.">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <FileUpload onImageSelect={(base64) => {
+                                        const next = { url: base64, prompt: "Uploaded background" };
+                                        setBackgrounds((prev) => [next, ...prev]);
+                                        setSelectedBackground(next);
+                                    }} />
+                                    <div>
+                                        <p className="text-sm font-semibold text-white">Upload image</p>
+                                        <p className="text-xs text-slate-500">Drop an image here or click</p>
+                                    </div>
+                                </div>
+
+                                {/* ✅ CHANGED: grid now 2-col, each card uses aspect-[2/3] Pinterest ratio */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    {backgrounds.map((bg) => (
+                                        <div
+                                            key={bg.url}
+                                            onClick={() => setSelectedBackground(bg)}
+                                            className="aspect-[2/3] w-full cursor-pointer"
+                                        >
+                                            <AiImageCard
+                                                url={bg.url}
+                                                prompt=""
+                                                isApprovedBg={selectedBackground.url === bg.url}
+                                                className="h-full w-full mb-0"
+                                                imageContainerClassName="flex-1 min-h-0"
+                                            />
+                                        </div>
                                     ))}
                                 </div>
-                            </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">CTA (Call-to-Action)</label>
-                                <input
-                                    type="text"
-                                    value={content.cta}
-                                    onChange={(e) => setContent({ ...content, cta: e.target.value })}
-                                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-medium"
-                                />
-                            </div>
-
-                            {/* Prompt to change */}
-                            <form onSubmit={handleRefineContent} className="mt-4 pt-4 border-t border-white/5 space-y-2">
-                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={contentPrompt}
-                                        onChange={(e) => setContentPrompt(e.target.value)}
-                                        placeholder="e.g. make the tone more playful"
-                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
-                                    >
-                                        Refine
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </MiniPanel>
-
-                    {/* Layout Panel */}
-                    <MiniPanel title="Layout Panel" description="Select a layout or search a trending structure.">
-                        <div className="space-y-4">
-                            <LayoutSelector
-                                layouts={layouts}
-                                onSelect={setSelectedLayout}
-                                selectedLayoutId={selectedLayout?.id || selectedLayout?.name}
-                            />
-
-                            {/* Prompt to change */}
-                            <form onSubmit={handleRefineLayout} className="pt-4 border-t border-white/5 space-y-2">
-                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change layout</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={layoutPrompt}
-                                        onChange={(e) => setLayoutPrompt(e.target.value)}
-                                        placeholder="e.g. show editorial styles"
-                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
-                                    >
-                                        Search
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </MiniPanel>
-
-                    {/* Background Panel */}
-                    <MiniPanel title="Background Panel" description="Choose backdrops, upload files or prompt AI.">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <FileUpload onImageSelect={(base64) => {
-                                    const next = { url: base64, prompt: "Uploaded background" };
-                                    setBackgrounds((prev) => [next, ...prev]);
-                                    setSelectedBackground(next);
-                                }} />
-                                <div>
-                                    <p className="text-sm font-semibold text-white">Upload image</p>
-                                    <p className="text-xs text-slate-500">Drop an image here or click</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                {backgrounds.map((bg) => (
-                                    <div
-                                        key={bg.url}
-                                        onClick={() => setSelectedBackground(bg)}
-                                        className={`group cursor-pointer overflow-hidden rounded-2xl border bg-slate-950 shadow-lg hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(233,30,99,0.15)] ${
-                                            selectedBackground.url === bg.url
-                                                ? "border-primary ring-2 ring-primary/20 shadow-[0_0_20px_rgba(233,30,99,0.15)]"
-                                                : "border-white/10"
-                                        }`}
-                                    >
-                                        <div className="aspect-[2/3] relative">
-                                            <img 
-                                                src={bg.url} 
-                                                alt={bg.prompt} 
-                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                            />
-                                            <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/90 to-transparent">
-                                                <p className="text-[10px] font-medium text-white line-clamp-2 leading-tight drop-shadow-md text-left">{bg.prompt}</p>
-                                            </div>
-                                        </div>
+                                {/* Prompt to change */}
+                                <form onSubmit={handleRefineBackground} className="pt-4 border-t border-white/5 space-y-2">
+                                    <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change background</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={backgroundPrompt}
+                                            onChange={(e) => setBackgroundPrompt(e.target.value)}
+                                            placeholder="e.g. generate a bright neon gradient"
+                                            className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                                        >
+                                            AI Gen
+                                        </button>
                                     </div>
-                                ))}
+                                </form>
                             </div>
-
-                            {/* Prompt to change */}
-                            <form onSubmit={handleRefineBackground} className="pt-4 border-t border-white/5 space-y-2">
-                                <label className="block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Prompt to change background</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={backgroundPrompt}
-                                        onChange={(e) => setBackgroundPrompt(e.target.value)}
-                                        placeholder="e.g. generate a bright neon gradient"
-                                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="bg-white/10 hover:bg-primary px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition"
-                                    >
-                                        AI Gen
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </MiniPanel>
+                        </MiniPanel>
                     </div>
 
                     {/* Right Column: Generated Pins Section */}
                     <div className="flex-1 w-full min-w-0 sticky top-6">
                         <section className="rounded-3xl border border-white/10 bg-slate-950/80 p-5 shadow-xl shadow-black/20">
-                    <div className="mb-5 flex items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-lg font-bold text-white">Final Output</h2>
-                            <p className="text-sm text-slate-500">Generate final pin variants only after content, layout, and background are selected.</p>
-                        </div>
-                        <button onClick={handleGeneratePin} disabled={!canGeneratePin || isGeneratingPin} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
-                            {isGeneratingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            Generate Pin
-                        </button>
-                    </div>
+                            <div className="mb-5 flex items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-lg font-bold text-white">Final Output</h2>
+                                    <p className="text-sm text-slate-500">Generate final pin variants only after content, layout, and background are selected.</p>
+                                </div>
+                                <button onClick={handleGeneratePin} disabled={!canGeneratePin || isGeneratingPin} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+                                    {isGeneratingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    Generate Pin
+                                </button>
+                            </div>
 
-                    {pinVariants.length > 0 ? (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {pinVariants.map((variant) => (
-                                    <div key={variant.id} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-lg">
-                                        <div className="aspect-[2/3] relative">
-                                            <AiImageCard url={variant.url} prompt={variant.name} />
+                            {pinVariants.length > 0 ? (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {pinVariants.map((variant) => (
+                                            <div key={variant.id} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-lg">
+                                                <div className="aspect-[2/3] relative">
+                                                    <AiImageCard url={variant.url} prompt={variant.name} />
+                                                </div>
+                                                <div className="border-t border-white/5 p-3">
+                                                    <p className="text-sm font-semibold text-white truncate">{variant.name}</p>
+                                                    <p className="text-xs text-slate-500">Preview variant</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Title</label>
+                                            <input value={content.headline} readOnly className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
                                         </div>
-                                        <div className="border-t border-white/5 p-3">
-                                            <p className="text-sm font-semibold text-white truncate">{variant.name}</p>
-                                            <p className="text-xs text-slate-500">Preview variant</p>
+                                        <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Description</label>
+                                            <textarea value={`${content.body.join(" • ")} • ${content.cta}`} readOnly className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
                                         </div>
                                     </div>
-                                ))}
-                            </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Title</label>
-                                    <input value={content.headline} readOnly className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">SEO Keywords</label>
+                                            <textarea readOnly value={seoKeywords} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                        </div>
+                                        <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Hashtags</label>
+                                            <textarea readOnly value={seoHashtags} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Pinterest Description</label>
-                                    <textarea value={`${content.body.join(" • ")} • ${content.cta}`} readOnly className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-                                </div>
-                            </div>
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">SEO Keywords</label>
-                                    <textarea readOnly value={seoKeywords} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-                                </div>
-                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Hashtags</label>
-                                    <textarea readOnly value={seoHashtags} className="min-h-[92px] w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none" />
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-8 text-center text-sm text-slate-500">Select all three panels, then click Generate Pin.</div>
-                    )}
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 p-8 text-center text-sm text-slate-500">Select all three panels, then click Generate Pin.</div>
+                            )}
                         </section>
                     </div>
                 </div>

@@ -8,29 +8,6 @@
 
 import { AgentResult, CriticOutput } from "./types";
 
-export function criticizePlannerOutput(output: any): CriticOutput {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!output.topic || output.topic.length < 5) {
-        errors.push("Topic is too short or empty");
-    }
-    if (!output.audience) {
-        errors.push("Audience not detected");
-    }
-    if (output.confidence < 0.3) {
-        warnings.push("Low confidence in pin idea. User may need clarification.");
-    }
-
-    const score = Math.max(0, 100 - errors.length * 30 - warnings.length * 10);
-
-    return {
-        isValid: errors.length === 0,
-        errors,
-        warnings,
-        score
-    };
-}
 
 export function criticizeContentOutput(output: any): CriticOutput {
     const errors: string[] = [];
@@ -132,27 +109,24 @@ export function criticizeGeneratorOutput(output: any): CriticOutput {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    if (!output.pinJson) {
-        errors.push("pin_json is missing");
+    if (!output.variants || !Array.isArray(output.variants)) {
+        errors.push("variants is missing or not an array");
+    } else if (output.variants.length === 0) {
+        errors.push("variants array is empty — no pins were rendered");
     } else {
-        const pj = output.pinJson;
-        if (!pj.baseImageUrl) {
-            errors.push("pin_json.baseImageUrl is missing");
-        }
-        if (!pj.style) {
-            warnings.push("pin_json.style not specified");
-        }
-        if (!Array.isArray(pj.layers) || pj.layers.length === 0) {
-            errors.push("pin_json.layers is empty or not an array");
-        } else {
-            pj.layers.forEach((layer: any, i: number) => {
-                if (!layer.role) {
-                    errors.push(`Layer ${i} missing role`);
-                }
-                if (!layer.text) {
-                    errors.push(`Layer ${i} missing text`);
-                }
-            });
+        output.variants.forEach((v: any, i: number) => {
+            if (!v.id) {
+                errors.push(`Variant ${i} missing id`);
+            }
+            if (!v.url) {
+                errors.push(`Variant ${i} missing url`);
+            }
+        });
+
+        if (output.variants.length < 3) {
+            warnings.push(
+                `Only ${output.variants.length}/3 variants rendered`
+            );
         }
     }
 

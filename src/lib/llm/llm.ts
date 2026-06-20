@@ -8,17 +8,18 @@ export async function createProject(topic: string) {
         },
         body: JSON.stringify({ topic })
     });
-    console.log(response)
+    console.log("content response",response)
     if (!response.ok) {
         const text = await response.text();
         throw new Error(`createProject failed (${response.status}): ${text}`);
     }
 
+
     return await response.json();
 }
 
 export async function generateMinimalContent(topic: string) {
-    const response = await fetch("/api/llm-call/generate-content", {
+    const response = await fetch("/api/llm-call/refine-content", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -35,13 +36,14 @@ export async function generateMinimalContent(topic: string) {
 }
 
 export async function generateBackground(topic: string, prompt?: string) {
-    const response = await fetch("/api/llm-call/generate-bg", {
+    const response = await fetch("/api/llm-call/refine-bg", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({ topic, prompt })
     });
+    console.log("Topic",topic)
 
     if (!response.ok) {
         const text = await response.text();
@@ -52,7 +54,7 @@ export async function generateBackground(topic: string, prompt?: string) {
 }
 
 export async function generateLayout(topic: string, prompt?: string) {
-    const response = await fetch("/api/llm-call/generate-layout", {
+    const response = await fetch("/api/llm-call/refine-layout", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -69,6 +71,8 @@ export async function generateLayout(topic: string, prompt?: string) {
 }
 
 export async function generatePin(body: {
+    
+    projectId: string;
     topic: string;
     content: { headline: string; body: string[]; cta: string };
     layout: LayoutDefinition;

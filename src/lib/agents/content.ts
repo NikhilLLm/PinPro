@@ -22,7 +22,7 @@ export async function runContentAgent(
     const { project, input } = context;
 
     console.log("[CONTENT] Running content agent...");
-    console.log(context)
+   
 
     // Use approved content if already selected
     if (input.approvedContent) {
@@ -77,7 +77,7 @@ export async function runContentAgent(
             temperature: 0.4,
             max_completion_tokens: 250
         });
-        console.log(response)
+        
         const content =
             response.choices?.[0]?.message?.content || "";
 

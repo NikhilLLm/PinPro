@@ -91,16 +91,14 @@ export interface LayoutOutput {
 // GENERATOR OUTPUT
 // ─────────────────────────────────────────────
 
-export interface GeneratorOutput {
+export interface PinVariant {
     id: string;
+    name: string;
+    url: string;
+}
 
-    pinJson: {
-        baseImageUrl: string;
-        style: string;
-        layers: any[];
-    };
-
-    pinUrl?: string;
+export interface GeneratorOutput {
+    variants: PinVariant[];
 }
 
 // ─────────────────────────────────────────────
@@ -117,22 +115,7 @@ export interface SEOOutput {
     keywords: string[];
 }
 
-// ─────────────────────────────────────────────
-// PLANNER OUTPUT (OPTIONAL)
-// Remove later if planner agent is deleted
-// ─────────────────────────────────────────────
 
-export interface PlannerOutput {
-    topic: string;
-
-    audience: string;
-
-    tone: string;
-
-    confidence: number;
-
-    rationale: string;
-}
 
 // ─────────────────────────────────────────────
 // CRITIC OUTPUT
@@ -179,8 +162,7 @@ export interface PinProjectState {
 
     seo?: SEOOutput;
 
-    // Optional planner output
-    pinIdea?: PlannerOutput;
+
 
     createdAt: Date;
 
@@ -237,7 +219,7 @@ export interface CreateProjectResponse {
 }
 
 export interface GeneratePinResponse {
-    generatedPins: GeneratorOutput[];
+    variants: PinVariant[];
 
-    seo: SEOOutput;
+    seo: SEOOutput | null;
 }

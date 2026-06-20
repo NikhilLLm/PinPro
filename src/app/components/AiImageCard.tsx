@@ -12,9 +12,11 @@ interface AiImageCardProps {
     pinUrl?: string;
     isApprovedBg?: boolean;
     onUseAsBackground?: () => void;
+    className?: string;
+    imageContainerClassName?: string;
 }
 
-export default function AiImageCard({ url, prompt, pinUrl, isApprovedBg, onUseAsBackground }: AiImageCardProps) {
+export default function AiImageCard({ url, prompt, pinUrl, isApprovedBg, onUseAsBackground, className, imageContainerClassName }: AiImageCardProps) {
     if (url === "") return <div className="w-full h-auto object-cover"></div>;
 
     const [isSaving, setIsSaving] = useState(false);
@@ -30,7 +32,7 @@ export default function AiImageCard({ url, prompt, pinUrl, isApprovedBg, onUseAs
                 title: prompt || "AI Generated Pin",
                 description: `Created with AI: ${prompt}`,
                 imageUrl: displayUrl,
-                fileId: "",
+                fileId: `ai-gen-${Date.now()}`,
             });
             showNotification("Pin saved to your collection!", "success");
         } catch (error) {
@@ -59,10 +61,10 @@ export default function AiImageCard({ url, prompt, pinUrl, isApprovedBg, onUseAs
     };
 
     return (
-        <div className={`break-inside-avoid group relative rounded-2xl overflow-hidden bg-slate-900 border-2 transition-all duration-300 mb-6 shadow-xl ${isApprovedBg
-                ? "border-emerald-500 ring-2 ring-emerald-500/30 shadow-emerald-500/10"
-                : "border-primary/30 hover:border-primary shadow-primary/5"
-            }`}>
+        <div className={`flex flex-col break-inside-avoid group relative rounded-2xl overflow-hidden bg-slate-900 border-2 transition-all duration-300 shadow-xl ${isApprovedBg
+            ? "border-emerald-500 ring-2 ring-emerald-500/30 shadow-emerald-500/10"
+            : "border-primary/30 hover:border-primary shadow-primary/5"
+            } ${className !== undefined ? className : "mb-6"}`}>
 
             {/* Approved Badge */}
             {isApprovedBg && (
@@ -112,13 +114,23 @@ export default function AiImageCard({ url, prompt, pinUrl, isApprovedBg, onUseAs
                 </div>
             )}
 
-            <img
-                src={displayUrl}
-                alt={prompt || "AI Generated Image"}
-                className="w-full h-auto object-cover"
-            />
+            {imageContainerClassName ? (
+                <div className={imageContainerClassName}>
+                    <img
+                        src={displayUrl}
+                        alt={prompt || "AI Generated Image"}
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+            ) : (
+                <img
+                    src={displayUrl}
+                    alt={prompt || "AI Generated Image"}
+                    className="w-full h-auto object-cover"
+                />
+            )}
 
-            <div className="p-4 bg-slate-900 border-t border-white/5">
+            <div className="mt-auto shrink-0 p-4 bg-slate-900 border-t border-white/5">
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500 font-mono">
                         Powered by Flux.1

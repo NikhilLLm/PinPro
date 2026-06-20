@@ -85,7 +85,7 @@ export default function Home() {
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <h2 className="text-2xl font-bold text-white tracking-tight">Recent Pins</h2>
         </div>
-        <ImageFeed images={images} />
+        <ImageFeed images={userImages} />
       </div>
     </main>
   );
